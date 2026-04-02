@@ -1,0 +1,111 @@
+// src/Data/styleData.js
+
+import {
+    IconLenLong, IconLenShort, IconCutRound, IconCutStraight, IconPlacketNotch, IconPlacketSquare,
+    IconPocket0, IconPocket1, IconPocket2, IconFlap0, IconFlap1, IconTypeRound, IconTypeNotch, IconTypeSquare,
+    IconEpNo, IconEpYes, IconColRound, IconColMandarin, IconColChinese, IconColShirtRound, IconColButtonDown,
+    IconColStandard, IconColSemiSpread, IconColSpread, IconSleeveNocuff, IconSleeveCuff,
+    IconTypeSquareC1, IconTypeRoundC1, IconTypeNotchC1, IconTypeSquareC2, IconTypeRoundC2, IconTypeNotchC2
+} from '../icons/KurtaIcons'; 
+
+export const KURTA_STYLE_OPTIONS = [
+    {
+        title: "Bottom Cut", key: "bottomCut",
+        options: [
+            { label: "Round", value: "R", icon: IconCutRound },
+            { label: "Straight", value: "S", icon: IconCutStraight }
+        ]
+    },
+    {
+        title: "Length", key: "length",
+        options: [
+            { label: "Long", value: "K", icon: IconLenLong },
+            { label: "Short", value: "L", icon: IconLenShort }
+        ]
+    },
+    {
+        title: "Neck Placket", key: "placketStyle",
+        options: [
+            { label: "Notch", value: "NS", icon: IconPlacketNotch },
+            { label: "Square", value: "QS", icon: IconPlacketSquare }
+        ]
+    },
+    {
+        title: "Pocket", key: "pocketQty",
+        options: [
+            { label: "No Pocket", value: "00", icon: IconPocket0 },
+            { label: "1 Pocket", value: "01", icon: IconPocket1 },
+            { label: "2 Pocket", value: "11", icon: IconPocket2 }
+        ]
+    },
+    {
+        title: "Pocket Type", key: "pocketShape",
+        dependency: { key: "pocketQty", notValue: "00" },
+        options: [
+            { label: "Round", value: "R", icon: IconTypeRound },
+            { label: "Notch", value: "N", icon: IconTypeNotch },
+            { label: "Square", value: "S", icon: IconTypeSquare }
+        ]
+    },
+    {
+        title: "Flap", key: "flapYes",
+        dependency: { key: "pocketQty", notValue: "00" },
+        options: [
+            { label: "No Flap", value: "0", icon: IconFlap0 },
+            { label: "Flap", value: "1", icon: IconFlap1 }
+        ]
+    },
+    {
+        title: "Flap Type", key: "flapShape",
+        dependency: { key: "flapYes", value: "1" },
+        options: [
+            { label: "Round", value: "R", icon: IconTypeRound },
+            { label: "Notch", value: "N", icon: IconTypeNotch },
+            { label: "Square", value: "S", icon: IconTypeSquare }
+        ]
+    },
+    {
+        title: "Shoulder Epaulette", key: "epaulette",
+        options: [
+            { label: "NO", value: "0", icon: IconEpNo },
+            { label: "YES", value: "SE", icon: IconEpYes }
+        ]
+    },
+    {
+        title: "Chinese Collar", key: "collar",
+        options: [
+            { label: "Round", value: "CN", icon: IconColRound },
+            { label: "Mandarin", value: "CM", icon: IconColMandarin },
+            { label: "Chinese", value: "CC", icon: IconColChinese }
+        ]
+    },
+    {
+        title: "Shirt Collar", key: "collar",
+        options: [
+            { label: "Round", value: "CR", icon: IconColShirtRound },
+            { label: "Button Down", value: "CB", icon: IconColButtonDown },
+            { label: "Standard", value: "CT", icon: IconColStandard },
+            { label: "Semi Spread", value: "CS", icon: IconColSemiSpread },
+            { label: "Spread", value: "CE", icon: IconColSpread }
+        ]
+    },
+    {
+        title: "Sleeve", key: "sleeve",
+        options: [
+            { label: "No Cuff", value: "SN", icon: IconSleeveNocuff },
+            { label: "Cuff", value: "SC", icon: IconSleeveCuff }
+        ]
+    },
+    {
+        title: "Cuff Style", key: "cuffStyle",
+        dependency: { key: "sleeve", value: "SC" },
+        options: [
+            { label: "Square", value: "US1", icon: IconTypeSquareC1 },
+            { label: "Round", value: "UR1", icon: IconTypeRoundC1 },
+            { label: "Notch", value: "UN1", icon: IconTypeNotchC1 },
+            { label: "2 Square", value: "US2", icon: IconTypeSquareC2 },
+            { label: "2 Round", value: "UR2", icon: IconTypeRoundC2 },
+            { label: "2 Notch", value: "UN2", icon: IconTypeNotchC2 }
+        ]
+    }
+];
