@@ -43,7 +43,7 @@ const SmartLayer = ({ src, zIndex }) => {
     );
 };
 
-export default function KurtaModel({ selections, selectedFabric }) {
+export default function KurtaModel({ selections, selectedFabric, selectedButton }) {
 
     // SAFETY CHECK: Jab tak data ready na ho, model render mat karo
     if (!selections || !selectedFabric) return null;
@@ -51,7 +51,8 @@ export default function KurtaModel({ selections, selectedFabric }) {
     const handsImage = selections.sleeve === "SC" ? kurta_hand_c : kurta_hand_n;
 
     // ENGINE KO BULAO: Ye function wo list (array) dega jo kapde pehnne hain
-    const layersToRender = getKurtaLayerCodes(selections) || [];
+    // viewMode 0 = Display (Full Body)
+    const layersToRender = getKurtaLayerCodes(selections, selectedButton, 0) || [];
 
     // DATABASE: Us kapde ki saari images yahan se nikalo
     const fabricRenders = KURTA_RENDERS[selectedFabric.fabricID]?.display || {};
@@ -67,7 +68,14 @@ export default function KurtaModel({ selections, selectedFabric }) {
             {layersToRender.map((layerObj, index) => {
                 if (!layerObj || !layerObj.code) return null;
 
-                const imageSource = fabricRenders[layerObj.code];
+                // Resolve image based on type
+                let imageSource = null;
+                if (layerObj.type === 'button') {
+                    imageSource = selectedButton?.renders?.[layerObj.code];
+                } else {
+                    imageSource = fabricRenders[layerObj.code];
+                }
+
                 if (!imageSource) return null;
 
                 return (
@@ -93,8 +101,8 @@ const styles = StyleSheet.create({
     },
     modelLayer: {
         position: 'absolute',
-        width: '100%',
-        height: '115%',
-        marginTop: 60
+        width: '105%',
+        height: '130%',
+        marginBottom: 10
     }
 });
