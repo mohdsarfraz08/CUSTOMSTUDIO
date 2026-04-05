@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Image, StyleSheet } from 'react-native';
 
 // ENGINE & DATA IMPORTS
-import { KURTA_RENDERS } from '../../../Data/dummyData';
+import { KURTA_RENDERS, EMBROIDERY_RENDERS, PAJAMA_RENDERS } from '../../../Data/dummyData';
 
 // --- FLICKER-FREE LAYER COMPONENT ---
 const SmartLayer = ({ src, zIndex }) => {
@@ -33,7 +33,7 @@ const SmartLayer = ({ src, zIndex }) => {
     );
 };
 
-export default function KurtaFolded({ selections, selectedFabric, selectedButton }) {
+export default function KurtaFolded({ selections, selectedFabric, selectedButton, selectedPajamaFabric }) {
 
     // --- ENGINE: Folded View (Style Images) Logic ---
     const getFoldedLayerCodes = () => {
@@ -57,72 +57,90 @@ export default function KurtaFolded({ selections, selectedFabric, selectedButton
         const isRing = selectedButton?.material === "Ring";
         const bSuffix = "-S";
 
+        // Helper function to enforce the Z-Index Sandwich
+        const addGarmentPart = (partName, fabricCode, baseZIndex, type = 'fabric') => {
+            // 1. BOTTOM LAYER: The Fabric itself
+            layersToRender.push({ code: fabricCode, zIndex: baseZIndex, type: type });
+
+            // 2. MIDDLE LAYER: The Embroidery
+            if (selections.embroideryID && ['Chest', 'Collar', 'Sleeve'].includes(partName)) {
+                layersToRender.push({ 
+                    code: `E-${fabricCode}${bSuffix}`, 
+                    zIndex: baseZIndex + 1, 
+                    type: 'embroidery',
+                    collectionID: selections.embroideryID,
+                    part: partName 
+                });
+            }
+        };
+
         // 1. FOLDED BASE
         const foldedBase = getFoldedBase(selections.collar);
-        layersToRender.push({ code: foldedBase, zIndex: 10, type: 'fabric' });
+        addGarmentPart('Chest', foldedBase, 10);
 
         // 2. FOLDED PLACKET
         const foldedPlacket = getFoldedPlacket(foldedBase, selections.placketStyle);
-        layersToRender.push({ code: foldedPlacket, zIndex: 20, type: 'fabric' });
+        addGarmentPart('Placket', foldedPlacket, 20);
 
         // Override button logic for folded view setup based on collar
         const isShirtCollar = shirtCollars.includes(selections.collar);
         if (isShirtCollar) {
-            if (!isRing) layersToRender.push({ code: "BHN", zIndex: 21, type: 'fabric' });
-            layersToRender.push({ code: `BKN${bSuffix}`, zIndex: 90, type: 'button' });
+            if (!isRing) layersToRender.push({ code: "BHN", zIndex: 20 + 5 - 1, type: 'fabric' });
+            layersToRender.push({ code: `BKN${bSuffix}`, zIndex: 20 + 5, type: 'button' });
         } else {
-            if (!isRing) layersToRender.push({ code: "BHC", zIndex: 21, type: 'fabric' });
-            layersToRender.push({ code: `BKC${bSuffix}`, zIndex: 90, type: 'button' });
+            if (!isRing) layersToRender.push({ code: "BHC", zIndex: 20 + 5 - 1, type: 'fabric' });
+            layersToRender.push({ code: `BKC${bSuffix}`, zIndex: 20 + 5, type: 'button' });
         }
 
-        // 3. FOLDED COLLAR
-        layersToRender.push({ code: selections.collar, zIndex: 50, type: 'fabric' });
-        if (selections.collar === "CB") {
-            if (!isRing) layersToRender.push({ code: "CBH", zIndex: 51, type: 'fabric' });
-            layersToRender.push({ code: `CBB${bSuffix}`, zIndex: 94, type: 'button' });
+        // 3. FOLDED POCKET & FLAP LAYERS
+        if (selections.pocketQty !== "00") {
+            addGarmentPart('Pocket', `R${selections.pocketShape}`, 30);
+            if (selections.flapYes === "1") {
+                addGarmentPart('Flap', `FR${selections.flapShape}`, 32);
+                if (!isRing) layersToRender.push({ code: "BHR", zIndex: 32 + 5 - 1, type: 'fabric' });
+                layersToRender.push({ code: `BPR${bSuffix}`, zIndex: 32 + 5, type: 'button' });
+            }
+
+            if (selections.pocketQty === "11") {
+                addGarmentPart('Pocket', `L${selections.pocketShape}`, 34);
+                if (selections.flapYes === "1") {
+                    addGarmentPart('Flap', `FL${selections.flapShape}`, 36);
+                    if (!isRing) layersToRender.push({ code: "BHL", zIndex: 36 + 5 - 1, type: 'fabric' });
+                    layersToRender.push({ code: `BPL${bSuffix}`, zIndex: 36 + 5, type: 'button' });
+                }
+            }
         }
 
         // 4. FOLDED SLEEVES & CUFFS
         if (selections.sleeve === "SN") {
-            layersToRender.push({ code: "SN", zIndex: 40, type: 'fabric' });
+            addGarmentPart('Sleeve', "SN", 55);
         } else if (selections.sleeve === "SC") {
-            layersToRender.push({ code: "SC", zIndex: 40, type: 'fabric' });
+            addGarmentPart('Sleeve', "SC", 55);
             if (selections.cuffStyle) {
-                layersToRender.push({ code: selections.cuffStyle, zIndex: 41, type: 'fabric' });
+                addGarmentPart('Cuff', selections.cuffStyle, 57);
                 if (selections.cuffStyle.endsWith("1")) {
-                    if (!isRing) layersToRender.push({ code: "BH2", zIndex: 42, type: 'fabric' });
-                    layersToRender.push({ code: `BC2${bSuffix}`, zIndex: 93, type: 'button' });
+                    if (!isRing) layersToRender.push({ code: "BH2", zIndex: 57 + 5 - 1, type: 'fabric' });
+                    layersToRender.push({ code: `BC2${bSuffix}`, zIndex: 57 + 5, type: 'button' });
                 } else if (selections.cuffStyle.endsWith("2")) {
-                    if (!isRing) layersToRender.push({ code: "BH4", zIndex: 42, type: 'fabric' });
-                    layersToRender.push({ code: `BC4${bSuffix}`, zIndex: 93, type: 'button' });
+                    if (!isRing) layersToRender.push({ code: "BH4", zIndex: 57 + 5 - 1, type: 'fabric' });
+                    layersToRender.push({ code: `BC4${bSuffix}`, zIndex: 57 + 5, type: 'button' });
                 }
             }
         }
 
-        // 5. FOLDED POCKET & FLAP LAYERS (same mapping as full body)
-        if (selections.pocketQty !== "00") {
-            layersToRender.push({ code: `R${selections.pocketShape}`, zIndex: 30, type: 'fabric' });
-            if (selections.flapYes === "1") {
-                layersToRender.push({ code: `FR${selections.flapShape}`, zIndex: 31, type: 'fabric' });
-                if (!isRing) layersToRender.push({ code: "BHR", zIndex: 32, type: 'fabric' });
-                layersToRender.push({ code: `BPR${bSuffix}`, zIndex: 91, type: 'button' });
-            }
+        // 5. FOLDED COLLAR
+        addGarmentPart('Collar', selections.collar, 65);
 
-            if (selections.pocketQty === "11") {
-                layersToRender.push({ code: `L${selections.pocketShape}`, zIndex: 32, type: 'fabric' });
-                if (selections.flapYes === "1") {
-                    layersToRender.push({ code: `FL${selections.flapShape}`, zIndex: 33, type: 'fabric' });
-                    if (!isRing) layersToRender.push({ code: "BHL", zIndex: 34, type: 'fabric' });
-                    layersToRender.push({ code: `BPL${bSuffix}`, zIndex: 91, type: 'button' });
-                }
-            }
+        if (selections.collar === "CB") {
+            if (!isRing) layersToRender.push({ code: "CBH", zIndex: 65 + 5 - 1, type: 'fabric' });
+            layersToRender.push({ code: `CBB${bSuffix}`, zIndex: 65 + 5, type: 'button' });
         }
 
         // 6. FOLDED EPAULETTE
         if (selections.epaulette === "SE") {
-            layersToRender.push({ code: "SE", zIndex: 35, type: 'fabric' });
-            if (!isRing) layersToRender.push({ code: "HE", zIndex: 36, type: 'fabric' });
-            layersToRender.push({ code: `BE${bSuffix}`, zIndex: 92, type: 'button' });
+            addGarmentPart('Epaulette', "SE", 45);
+            if (!isRing) layersToRender.push({ code: "HE", zIndex: 45 + 5 - 1, type: 'fabric' });
+            layersToRender.push({ code: `BE${bSuffix}`, zIndex: 45 + 5, type: 'button' });
         }
 
         return layersToRender;
@@ -130,6 +148,8 @@ export default function KurtaFolded({ selections, selectedFabric, selectedButton
 
     // 3. Selected Fabric ke 'style' (Folded) folder dhoondho
     const fabricStyleRenders = KURTA_RENDERS[selectedFabric.fabricID]?.style || {};
+    // Pajama style renders by fabricID
+    const pajamaStyleRenders = PAJAMA_RENDERS[selectedPajamaFabric?.fabricID]?.style || {};
 
     return (
         <View style={styles.container}>
@@ -138,6 +158,10 @@ export default function KurtaFolded({ selections, selectedFabric, selectedButton
                 let imageSource = null;
                 if (layerObj.type === 'button') {
                     imageSource = selectedButton?.renders?.[layerObj.code];
+                } else if (layerObj.type === 'embroidery') {
+                    imageSource = EMBROIDERY_RENDERS[layerObj.collectionID]?.folded?.[layerObj.code];
+                } else if (layerObj.type === 'pajama') {
+                    imageSource = pajamaStyleRenders[layerObj.code];
                 } else {
                     imageSource = fabricStyleRenders[layerObj.code];
                 }

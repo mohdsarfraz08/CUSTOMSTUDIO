@@ -2,14 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { View, Image, StyleSheet } from 'react-native';
 
 // ENGINE & DATA IMPORTS
-import { KURTA_RENDERS } from '../../../Data/dummyData';
+import { KURTA_RENDERS, EMBROIDERY_RENDERS, PAJAMA_RENDERS } from '../../../Data/dummyData';
 import { getKurtaLayerCodes } from '../../../Functions/layerEngine';
 
 // ASSETS IMPORTS
 import kurta_body from '../../../../assets/images/body/kurta_body.webp';
 import kurta_hand_n from '../../../../assets/images/body/kurta_hand_n.webp';
 import kurta_hand_c from '../../../../assets/images/body/kurta_hand_c.webp';
-import pajama_body from '../../../../assets/images/body/pajama_body.webp';
 
 
 const SmartLayer = ({ src, zIndex }) => {
@@ -43,7 +42,7 @@ const SmartLayer = ({ src, zIndex }) => {
     );
 };
 
-export default function KurtaModel({ selections, selectedFabric, selectedButton }) {
+export default function KurtaModel({ selections, selectedFabric, selectedButton, selectedPajamaFabric }) {
 
     // SAFETY CHECK: Jab tak data ready na ho, model render mat karo
     if (!selections || !selectedFabric) return null;
@@ -56,13 +55,13 @@ export default function KurtaModel({ selections, selectedFabric, selectedButton 
 
     // DATABASE: Us kapde ki saari images yahan se nikalo
     const fabricRenders = KURTA_RENDERS[selectedFabric.fabricID]?.display || {};
+    // Pajama renders by fabricID (same fabric can have a matching pajama render)
+    const pajamaRenders = PAJAMA_RENDERS[selectedPajamaFabric?.fabricID]?.display || {};
 
     return (
         <View style={styles.container}>
             {/* 1. Nanga Ladka (Z-Index: 1) */}
             <Image source={kurta_body} style={[styles.modelLayer, { zIndex: 1 }]} resizeMode="contain" />
-
-            <Image source={pajama_body} style={[styles.modelLayer, { zIndex: 1 }]} resizeMode="contain" />
 
             {/* 2. Kapde ki Layers (Z-Index: 10 se 90) */}
             {layersToRender.map((layerObj, index) => {
@@ -72,6 +71,10 @@ export default function KurtaModel({ selections, selectedFabric, selectedButton 
                 let imageSource = null;
                 if (layerObj.type === 'button') {
                     imageSource = selectedButton?.renders?.[layerObj.code];
+                } else if (layerObj.type === 'embroidery') {
+                    imageSource = EMBROIDERY_RENDERS[layerObj.collectionID]?.display?.[layerObj.code];
+                } else if (layerObj.type === 'pajama') {
+                    imageSource = pajamaRenders[layerObj.code];
                 } else {
                     imageSource = fabricRenders[layerObj.code];
                 }

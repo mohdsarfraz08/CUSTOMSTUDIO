@@ -107,5 +107,26 @@ export const KURTA_STYLE_OPTIONS = [
             { label: "Notch 2", value: "UN2", icon: IconCuffNotch2 },
             { label: "Square 2", value: "US2", icon: IconCuffSquare2 }
         ]
+    },
+    {
+        title: "Pajama Type", key: "pajamaType",
+        options: [
+            { label: "Salwar",     value: "PS", icon: IconCutRound },
+            { label: "Dhoti",      value: "PD", icon: IconCutStraight },
+            { label: "Pajama",     value: "PJ", icon: IconLenLong },
+            { label: "Chudidar",   value: "PC", icon: IconLenShort },
+            { label: "Patiala",    value: "PT", icon: IconPlacketNotch },
+            { label: "Aligarhi",   value: "PA", icon: IconPlacketSquare },
+            { label: "Pant",       value: "PP", icon: IconTypeRound },
+            { label: "Bellbottom", value: "PB", icon: IconTypeSquare }
+        ]
+    },
+    {
+        title: "Belt Type", key: "beltType",
+        dependency: { key: "pajamaType", notValue: "PP", andNotValue: "PB" },
+        options: [
+            { label: "Rope",    value: "R", icon: IconEpYes },
+            { label: "Elastic", value: "E", icon: IconEpNo }
+        ]
     }
 ];

@@ -3,12 +3,13 @@ import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Dimensions, Ani
 import { router } from 'expo-router';
 import { BlurView } from 'expo-blur';
 
-import { DUMMY_FABRICS, INITIAL_SELECTION, DUMMY_BUTTONS } from '../../Data/dummyData';
+import { DUMMY_FABRICS, INITIAL_SELECTION, DUMMY_BUTTONS, EMBROIDERY_COLLECTIONS } from '../../Data/dummyData';
 import { KURTA_STYLE_OPTIONS } from '../../Data/styleData';
 
 // --- YAHAN MODEL COMPONENT IMPORT HUA HAI ---
 import KurtaModel from './components/KurtaModel';
 import KurtaFolded from './components/KurtaFolded';
+import PajamaStylePreview from './components/PajamaStylePreview';
 import FullScreenCarousel from '../../../components/FullScreenCarousel';
 
 import { IconFabric, IconStyle, IconEmbroidery, IconExtras } from '../../icons/ExtraIcons';
@@ -22,11 +23,13 @@ export default function KurtaMain() {
     // STATE MANAGEMENT
     const [selectedFabric, setSelectedFabric] = useState(DUMMY_FABRICS ? DUMMY_FABRICS[0] : {});
     const [selections, setSelections] = useState(INITIAL_SELECTION || {
-        bottomCut: 'R', length: 'K', placketStyle: 'NS', pocketQty: '00', pocketShape: 'R', flapYes: '0', flapShape: 'R', epaulette: '0', collar: 'CM', sleeve: 'SN', cuffStyle: 'US1'
+        bottomCut: 'R', length: 'K', placketStyle: 'NS', pocketQty: '00', pocketShape: 'R', flapYes: '0', flapShape: 'R', epaulette: '0', collar: 'CM', sleeve: 'SN', cuffStyle: 'US1', embroideryID: null
     });
     const [selectedButton, setSelectedButton] = useState(INITIAL_SELECTION?.button || (DUMMY_BUTTONS ? DUMMY_BUTTONS[0] : null));
     const [isButtonModalOpen, setButtonModalOpen] = useState(false);
     const [buttonModalTab, setButtonModalTab] = useState('Plastic');
+    const [selectedPajamaFabric, setSelectedPajamaFabric] = useState(DUMMY_FABRICS ? DUMMY_FABRICS[0] : {});
+    const [fabricTab, setFabricTab] = useState('Kurta'); // 'Kurta' | 'Pajama'
 
     const carouselRef = useRef(null);
     const slideAnim = useRef(new Animated.Value(-width)).current;
@@ -57,7 +60,21 @@ export default function KurtaMain() {
             <View style={{ flex: 1, position: 'relative' }}>
                 {/* --- FABRIC PANEL --- */}
                 <View style={[StyleSheet.absoluteFill, { opacity: activePanel === 'Fabric' ? 1 : 0, zIndex: activePanel === 'Fabric' ? 10 : 0 }]} pointerEvents={activePanel === 'Fabric' ? 'auto' : 'none'}>
-                    {DUMMY_FABRICS ? (
+                    {/* SWITCHER TABS */}
+                    <View style={styles.fabricSwitcher}>
+                        {['Kurta', 'Pajama'].map(tab => (
+                            <TouchableOpacity
+                                key={tab}
+                                style={[styles.fabricSwitcherTab, fabricTab === tab && styles.fabricSwitcherTabActive]}
+                                onPress={() => setFabricTab(tab)}
+                            >
+                                <Text style={[styles.fabricSwitcherText, fabricTab === tab && { color: '#fff' }]}>{tab}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+
+                    {/* KURTA FABRICS */}
+                    {fabricTab === 'Kurta' && DUMMY_FABRICS ? (
                         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.gridContainer}>
                             {DUMMY_FABRICS.map((fabric) => (
                                 <TouchableOpacity key={fabric.fabricID} style={[styles.fabricCard, selectedFabric?.fabricID === fabric.fabricID && styles.fabricCardActive]} onPress={() => { setSelectedFabric(fabric); closePanel(); }}>
@@ -70,9 +87,25 @@ export default function KurtaMain() {
                                 </TouchableOpacity>
                             ))}
                         </ScrollView>
-                    ) : (
-                        <Text style={styles.panelContent}>Loading Fabrics...</Text>
-                    )}
+                    ) : null}
+
+                    {/* PAJAMA FABRICS — same fabric list as Kurta, independent selection */}
+                    {fabricTab === 'Pajama' && DUMMY_FABRICS ? (
+                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.gridContainer}>
+                            {DUMMY_FABRICS.map((fabric) => (
+                                <TouchableOpacity key={fabric.fabricID} style={[styles.fabricCard, selectedPajamaFabric?.fabricID === fabric.fabricID && styles.fabricCardActive]} onPress={() => { setSelectedPajamaFabric(fabric); closePanel(); }}>
+                                    <BlurView tint="light" intensity={30} style={StyleSheet.absoluteFill} />
+                                    <Image source={fabric.thumbnail} style={styles.fabricImage} />
+                                    <View style={styles.fabricInfo}>
+                                        <Text style={styles.fabricName}>{fabric.name}</Text>
+                                        <Text style={styles.fabricBrand}>{fabric.brand}</Text>
+                                    </View>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    ) : null}
+
+                    {!DUMMY_FABRICS && <Text style={styles.panelContent}>Loading Fabrics...</Text>}
                 </View>
 
                 {/* --- STYLE PANEL --- */}
@@ -117,6 +150,7 @@ export default function KurtaMain() {
                                 if (section.dependency) {
                                     const depValue = selections[section.dependency.key];
                                     if (section.dependency.notValue && depValue === section.dependency.notValue) return null;
+                                    if (section.dependency.andNotValue && depValue === section.dependency.andNotValue) return null;
                                     if (section.dependency.value && depValue !== section.dependency.value) return null;
                                 }
 
@@ -147,8 +181,42 @@ export default function KurtaMain() {
                     )}
                 </View>
 
+                {/* --- EMBROIDERY PANEL --- */}
+                <View style={[StyleSheet.absoluteFill, { opacity: activePanel === 'Embroidery' ? 1 : 0, zIndex: activePanel === 'Embroidery' ? 10 : 0 }]} pointerEvents={activePanel === 'Embroidery' ? 'auto' : 'none'}>
+                    {EMBROIDERY_COLLECTIONS ? (
+                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.gridContainer}>
+                            <TouchableOpacity style={[styles.fabricCard, !selections.embroideryID && styles.fabricCardActive]} onPress={() => { handleStyleChange('embroideryID', null); closePanel(); }}>
+                                <BlurView tint="light" intensity={30} style={StyleSheet.absoluteFill} />
+                                <View style={[styles.fabricImage, { backgroundColor: '#ddd', justifyContent: 'center', alignItems: 'center' }]}>
+                                    <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#555' }}>None</Text>
+                                </View>
+                                <View style={styles.fabricInfo}>
+                                    <Text style={styles.fabricName}>No Embroidery</Text>
+                                    <Text style={styles.fabricBrand}>+ ₹ 0</Text>
+                                </View>
+                            </TouchableOpacity>
+                            {EMBROIDERY_COLLECTIONS.map((embroidery) => (
+                                <TouchableOpacity key={embroidery.id} style={[styles.fabricCard, selections.embroideryID === embroidery.id && styles.fabricCardActive]} onPress={() => { handleStyleChange('embroideryID', embroidery.id); closePanel(); }}>
+                                    <BlurView tint="light" intensity={30} style={StyleSheet.absoluteFill} />
+                                    {embroidery.profileImage ? (
+                                        <Image source={embroidery.profileImage} style={styles.fabricImage} />
+                                    ) : (
+                                        <View style={[styles.fabricImage, { backgroundColor: '#f0e6d2' }]} />
+                                    )}
+                                    <View style={styles.fabricInfo}>
+                                        <Text style={styles.fabricName}>{embroidery.name}</Text>
+                                        <Text style={[styles.fabricBrand, { color: '#27ae60', fontWeight: 'bold' }]}>+ ₹ {embroidery.price}</Text>
+                                    </View>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    ) : (
+                        <Text style={styles.panelContent}>Loading Embroidery...</Text>
+                    )}
+                </View>
+
                 {/* --- DEFAULT PANEL --- */}
-                {activePanel !== 'Fabric' && activePanel !== 'Style' && (
+                {activePanel !== 'Fabric' && activePanel !== 'Style' && activePanel !== 'Embroidery' && (
                     <View style={[StyleSheet.absoluteFill, { opacity: 1, zIndex: 1 }]} pointerEvents="auto">
                         <Text style={styles.panelContent}>Select a category to customize.</Text>
                     </View>
@@ -157,6 +225,11 @@ export default function KurtaMain() {
         );
     };
 
+
+    const basePrice = (selectedFabric?.price || 0) + 4500;
+    const pajamaFabricPrice = selectedPajamaFabric?.price || 0;
+    const embroideryPrice = selections.embroideryID ? (EMBROIDERY_COLLECTIONS.find(e => e.id === selections.embroideryID)?.price || 0) : 0;
+    const totalPrice = basePrice + pajamaFabricPrice + embroideryPrice;
 
     return (
         <SafeAreaView style={styles.container}>
@@ -174,10 +247,13 @@ export default function KurtaMain() {
                     ref={carouselRef}
                     data={[
                         <View key="full" style={{ flex: 1, position: 'relative', width: '100%', height: '100%' }}>
-                            <KurtaModel selections={selections} selectedFabric={selectedFabric} selectedButton={selectedButton} />
+                            <KurtaModel selections={selections} selectedFabric={selectedFabric} selectedButton={selectedButton} selectedPajamaFabric={selectedPajamaFabric} />
                         </View>,
                         <View key="folded" style={{ flex: 1, position: 'relative', width: '100%', height: '100%' }}>
-                            <KurtaFolded selections={selections} selectedFabric={selectedFabric} selectedButton={selectedButton} />
+                            <KurtaFolded selections={selections} selectedFabric={selectedFabric} selectedButton={selectedButton} selectedPajamaFabric={selectedPajamaFabric} />
+                        </View>,
+                        <View key="pajama_only" style={{ flex: 1, position: 'relative', width: '100%', height: '100%' }}>
+                            <PajamaStylePreview selections={selections} selectedPajamaFabric={selectedPajamaFabric} />
                         </View>
                     ]}
                 />
@@ -271,8 +347,8 @@ export default function KurtaMain() {
                 <View style={styles.priceContainer}>
                     <Text style={styles.productName}>Your custom kurta set</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Text style={styles.price}>₹ {(selectedFabric?.price || 0) + 4500}</Text>
-                        <Text style={styles.discount}> Base + Fabric</Text>
+                        <Text style={styles.price}>₹ {totalPrice}</Text>
+                        <Text style={styles.discount}> Base + Fabric {embroideryPrice > 0 ? '+ Embroidery' : ''}</Text>
                     </View>
                 </View>
                 <TouchableOpacity style={styles.checkoutBtn} onPress={() => alert('Measurements Screen!')}><Text style={styles.checkoutText}>Lets Dressup {'>'}</Text></TouchableOpacity>
@@ -320,6 +396,12 @@ const styles = StyleSheet.create({
     discount: { fontSize: 12, color: '#666', fontWeight: 'bold' },
     checkoutBtn: { backgroundColor: '#14213D', paddingVertical: 14, paddingHorizontal: 25, borderRadius: 40, shadowColor: '#14213D', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 12 },
     checkoutText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+
+    // Fabric Tab Switcher
+    fabricSwitcher: { flexDirection: 'row', marginHorizontal: 15, marginTop: 10, marginBottom: 8, backgroundColor: 'rgba(0,0,0,0.08)', borderRadius: 25, padding: 3 },
+    fabricSwitcherTab: { flex: 1, paddingVertical: 7, borderRadius: 22, alignItems: 'center' },
+    fabricSwitcherTabActive: { backgroundColor: '#14213D' },
+    fabricSwitcherText: { fontSize: 13, fontWeight: 'bold', color: '#14213D' },
 
     // Button UI Styles
     buttonBanner: { backgroundColor: '#14213d', paddingVertical: 10, borderRadius: 6, alignItems: 'center', marginBottom: 15, marginHorizontal: 5 },

@@ -66,6 +66,16 @@ export const DUMMY_BUTTONS = [
     }
 ];
 
+export const EMBROIDERY_COLLECTIONS = [
+    {
+        id: "DDF01",
+        name: "Naqsh E Darbaar",
+        price: 3500,
+        profileImage: require('../../assets/kurta/Embroidery/Profiles/DDF01.jpg'),
+        availableRegions: ["Chest", "Collar", "Sleeve"]
+    }
+];
+
 export const INITIAL_SELECTION = {
     button: DUMMY_BUTTONS[0],
     length: 'K',
@@ -78,7 +88,68 @@ export const INITIAL_SELECTION = {
     epaulette: '0',
     collar: 'CM',
     sleeve: 'SN',
-    cuffStyle: 'US1'
+    cuffStyle: 'US1',
+    embroideryID: null, // Selected Embroidery ID
+    pajamaType: 'PJ',
+    beltType: 'R'
 };
 
 export const KURTA_RENDERS = KURTA_RENDERS_SOURCE;
+
+// ------- PAJAMA RENDERS -------
+// Same fabric ID system as KURTA_RENDERS.
+// Folder: assets/Pajama/Render/{fabricID}/display/ and /style/
+// DISPLAY file names: "{pajamaType}-{baseCode}"  e.g. "PJ-D", "PB-R"
+// STYLE file names:   "{pajamaType}-{beltType}"    e.g. "PA-E", "PJ-R" (PB, PP are single)
+export const PAJAMA_RENDERS = {
+    "FAB_001": {
+        display: {
+            "PA-D": require('../../assets/Pajama/Render/FAB_001/display/PA-D.webp'), "PA-D0": require('../../assets/Pajama/Render/FAB_001/display/PA-D0.webp'), "PA-K": require('../../assets/Pajama/Render/FAB_001/display/PA-K.webp'), "PA-L": require('../../assets/Pajama/Render/FAB_001/display/PA-L.webp'), "PA-P": require('../../assets/Pajama/Render/FAB_001/display/PA-P.webp'), "PA-P0": require('../../assets/Pajama/Render/FAB_001/display/PA-P0.webp'), "PA-Q": require('../../assets/Pajama/Render/FAB_001/display/PA-Q.webp'), "PA-Q0": require('../../assets/Pajama/Render/FAB_001/display/PA-Q0.webp'), "PA-R": require('../../assets/Pajama/Render/FAB_001/display/PA-R.webp'), "PA-S": require('../../assets/Pajama/Render/FAB_001/display/PA-S.webp'), "PA-T": require('../../assets/Pajama/Render/FAB_001/display/PA-T.webp'), "PA-T0": require('../../assets/Pajama/Render/FAB_001/display/PA-T0.webp'),
+            "PB-D": require('../../assets/Pajama/Render/FAB_001/display/PB-D.webp'), "PB-D0": require('../../assets/Pajama/Render/FAB_001/display/PB-D0.webp'), "PB-K": require('../../assets/Pajama/Render/FAB_001/display/PB-K.webp'), "PB-L": require('../../assets/Pajama/Render/FAB_001/display/PB-L.webp'), "PB-P": require('../../assets/Pajama/Render/FAB_001/display/PB-P.webp'), "PB-P0": require('../../assets/Pajama/Render/FAB_001/display/PB-P0.webp'), "PB-Q": require('../../assets/Pajama/Render/FAB_001/display/PB-Q.webp'), "PB-Q0": require('../../assets/Pajama/Render/FAB_001/display/PB-Q0.webp'), "PB-R": require('../../assets/Pajama/Render/FAB_001/display/PB-R.webp'), "PB-S": require('../../assets/Pajama/Render/FAB_001/display/PB-S.webp'), "PB-T": require('../../assets/Pajama/Render/FAB_001/display/PB-T.webp'), "PB-T0": require('../../assets/Pajama/Render/FAB_001/display/PB-T0.webp'),
+            "PC-D": require('../../assets/Pajama/Render/FAB_001/display/PC-D.webp'), "PC-D0": require('../../assets/Pajama/Render/FAB_001/display/PC-D0.webp'), "PC-K": require('../../assets/Pajama/Render/FAB_001/display/PC-K.webp'), "PC-L": require('../../assets/Pajama/Render/FAB_001/display/PC-L.webp'), "PC-P": require('../../assets/Pajama/Render/FAB_001/display/PC-P.webp'), "PC-P0": require('../../assets/Pajama/Render/FAB_001/display/PC-P0.webp'), "PC-Q": require('../../assets/Pajama/Render/FAB_001/display/PC-Q.webp'), "PC-Q0": require('../../assets/Pajama/Render/FAB_001/display/PC-Q0.webp'), "PC-R": require('../../assets/Pajama/Render/FAB_001/display/PC-R.webp'), "PC-S": require('../../assets/Pajama/Render/FAB_001/display/PC-S.webp'), "PC-T": require('../../assets/Pajama/Render/FAB_001/display/PC-T.webp'), "PC-T0": require('../../assets/Pajama/Render/FAB_001/display/PC-T0.webp'),
+            "PD-D": require('../../assets/Pajama/Render/FAB_001/display/PD-D.webp'), "PD-D0": require('../../assets/Pajama/Render/FAB_001/display/PD-D0.webp'), "PD-K": require('../../assets/Pajama/Render/FAB_001/display/PD-K.webp'), "PD-L": require('../../assets/Pajama/Render/FAB_001/display/PD-L.webp'), "PD-P": require('../../assets/Pajama/Render/FAB_001/display/PD-P.webp'), "PD-P0": require('../../assets/Pajama/Render/FAB_001/display/PD-P0.webp'), "PD-Q": require('../../assets/Pajama/Render/FAB_001/display/PD-Q.webp'), "PD-Q0": require('../../assets/Pajama/Render/FAB_001/display/PD-Q0.webp'), "PD-R": require('../../assets/Pajama/Render/FAB_001/display/PD-R.webp'), "PD-S": require('../../assets/Pajama/Render/FAB_001/display/PD-S.webp'), "PD-T": require('../../assets/Pajama/Render/FAB_001/display/PD-T.webp'), "PD-T0": require('../../assets/Pajama/Render/FAB_001/display/PD-T0.webp'),
+            "PJ-D": require('../../assets/Pajama/Render/FAB_001/display/PJ-D.webp'), "PJ-D0": require('../../assets/Pajama/Render/FAB_001/display/PJ-D0.webp'), "PJ-K": require('../../assets/Pajama/Render/FAB_001/display/PJ-K.webp'), "PJ-L": require('../../assets/Pajama/Render/FAB_001/display/PJ-L.webp'), "PJ-P": require('../../assets/Pajama/Render/FAB_001/display/PJ-P.webp'), "PJ-P0": require('../../assets/Pajama/Render/FAB_001/display/PJ-P0.webp'), "PJ-Q": require('../../assets/Pajama/Render/FAB_001/display/PJ-Q.webp'), "PJ-Q0": require('../../assets/Pajama/Render/FAB_001/display/PJ-Q0.webp'), "PJ-R": require('../../assets/Pajama/Render/FAB_001/display/PJ-R.webp'), "PJ-S": require('../../assets/Pajama/Render/FAB_001/display/PJ-S.webp'), "PJ-T": require('../../assets/Pajama/Render/FAB_001/display/PJ-T.webp'), "PJ-T0": require('../../assets/Pajama/Render/FAB_001/display/PJ-T0.webp'),
+            "PP-D": require('../../assets/Pajama/Render/FAB_001/display/PP-D.webp'), "PP-D0": require('../../assets/Pajama/Render/FAB_001/display/PP-D0.webp'), "PP-K": require('../../assets/Pajama/Render/FAB_001/display/PP-K.webp'), "PP-L": require('../../assets/Pajama/Render/FAB_001/display/PP-L.webp'), "PP-P": require('../../assets/Pajama/Render/FAB_001/display/PP-P.webp'), "PP-P0": require('../../assets/Pajama/Render/FAB_001/display/PP-P0.webp'), "PP-Q": require('../../assets/Pajama/Render/FAB_001/display/PP-Q.webp'), "PP-Q0": require('../../assets/Pajama/Render/FAB_001/display/PP-Q0.webp'), "PP-R": require('../../assets/Pajama/Render/FAB_001/display/PP-R.webp'), "PP-S": require('../../assets/Pajama/Render/FAB_001/display/PP-S.webp'), "PP-T": require('../../assets/Pajama/Render/FAB_001/display/PP-T.webp'), "PP-T0": require('../../assets/Pajama/Render/FAB_001/display/PP-T0.webp'),
+            "PS-D": require('../../assets/Pajama/Render/FAB_001/display/PS-D.webp'), "PS-D0": require('../../assets/Pajama/Render/FAB_001/display/PS-D0.webp'), "PS-K": require('../../assets/Pajama/Render/FAB_001/display/PS-K.webp'), "PS-L": require('../../assets/Pajama/Render/FAB_001/display/PS-L.webp'), "PS-P": require('../../assets/Pajama/Render/FAB_001/display/PS-P.webp'), "PS-P0": require('../../assets/Pajama/Render/FAB_001/display/PS-P0.webp'), "PS-Q": require('../../assets/Pajama/Render/FAB_001/display/PS-Q.webp'), "PS-Q0": require('../../assets/Pajama/Render/FAB_001/display/PS-Q0.webp'), "PS-R": require('../../assets/Pajama/Render/FAB_001/display/PS-R.webp'), "PS-S": require('../../assets/Pajama/Render/FAB_001/display/PS-S.webp'), "PS-T": require('../../assets/Pajama/Render/FAB_001/display/PS-T.webp'), "PS-T0": require('../../assets/Pajama/Render/FAB_001/display/PS-T0.webp'),
+            "PT-D": require('../../assets/Pajama/Render/FAB_001/display/PT-D.webp'), "PT-D0": require('../../assets/Pajama/Render/FAB_001/display/PT-D0.webp'), "PT-K": require('../../assets/Pajama/Render/FAB_001/display/PT-K.webp'), "PT-L": require('../../assets/Pajama/Render/FAB_001/display/PT-L.webp'), "PT-P": require('../../assets/Pajama/Render/FAB_001/display/PT-P.webp'), "PT-P0": require('../../assets/Pajama/Render/FAB_001/display/PT-P0.webp'), "PT-Q": require('../../assets/Pajama/Render/FAB_001/display/PT-Q.webp'), "PT-Q0": require('../../assets/Pajama/Render/FAB_001/display/PT-Q0.webp'), "PT-R": require('../../assets/Pajama/Render/FAB_001/display/PT-R.webp'), "PT-S": require('../../assets/Pajama/Render/FAB_001/display/PT-S.webp'), "PT-T": require('../../assets/Pajama/Render/FAB_001/display/PT-T.webp'), "PT-T0": require('../../assets/Pajama/Render/FAB_001/display/PT-T0.webp'),
+        },
+        style: {
+            "PA-E": require('../../assets/Pajama/Render/FAB_001/style/PA-E.webp'), "PA-R": require('../../assets/Pajama/Render/FAB_001/style/PA-R.webp'),
+            "PB": require('../../assets/Pajama/Render/FAB_001/style/PB.webp'),
+            "PC-E": require('../../assets/Pajama/Render/FAB_001/style/PC-E.webp'), "PC-R": require('../../assets/Pajama/Render/FAB_001/style/PC-R.webp'),
+            "PD-E": require('../../assets/Pajama/Render/FAB_001/style/PD-E.webp'), "PD-R": require('../../assets/Pajama/Render/FAB_001/style/PD-R.webp'),
+            "PJ-E": require('../../assets/Pajama/Render/FAB_001/style/PJ-E.webp'), "PJ-R": require('../../assets/Pajama/Render/FAB_001/style/PJ-R.webp'),
+            "PP": require('../../assets/Pajama/Render/FAB_001/style/PP.webp'),
+            "PS-E": require('../../assets/Pajama/Render/FAB_001/style/PS-E.webp'), "PS-R": require('../../assets/Pajama/Render/FAB_001/style/PS-R.webp'),
+            "PT-E": require('../../assets/Pajama/Render/FAB_001/style/PT-E.webp'), "PT-R": require('../../assets/Pajama/Render/FAB_001/style/PT-R.webp'),
+        }
+    },
+    "FAB_002": {
+        display: {},
+        style: {}
+    },
+};
+export const EMBROIDERY_RENDERS = {
+    "DDF01": { 
+        display: {
+            "E-D-F": require('../../assets/kurta/Embroidery/Renders/DDF01/Chest/E-D-F.webp'),
+            "E-D0-F": require('../../assets/kurta/Embroidery/Renders/DDF01/Chest/E-D0-F.webp'),
+            "E-K-F": require('../../assets/kurta/Embroidery/Renders/DDF01/Chest/E-K-F.webp'),
+            "E-L-F": require('../../assets/kurta/Embroidery/Renders/DDF01/Chest/E-L-F.webp'),
+            "E-P-F": require('../../assets/kurta/Embroidery/Renders/DDF01/Chest/E-P-F.webp'),
+            "E-P0-F": require('../../assets/kurta/Embroidery/Renders/DDF01/Chest/E-P0-F.webp'),
+            "E-Q-F": require('../../assets/kurta/Embroidery/Renders/DDF01/Chest/E-Q-F.webp'),
+            "E-Q0-F": require('../../assets/kurta/Embroidery/Renders/DDF01/Chest/E-Q0-F.webp'),
+            "E-R-F": require('../../assets/kurta/Embroidery/Renders/DDF01/Chest/E-R-F.webp'),
+            "E-S-F": require('../../assets/kurta/Embroidery/Renders/DDF01/Chest/E-S-F.webp'),
+            "E-T-F": require('../../assets/kurta/Embroidery/Renders/DDF01/Chest/E-T-F.webp'),
+            "E-T0-F": require('../../assets/kurta/Embroidery/Renders/DDF01/Chest/E-T0-F.webp')
+        }, 
+        folded: {
+            "E-BASE-S": require('../../assets/kurta/Embroidery/Renders/DDF01/Chest/E-BASE-S.webp'),
+            "E-BASE_C-S": require('../../assets/kurta/Embroidery/Renders/DDF01/Chest/E-BASE-S.webp'),
+            "E-BASE_M-S": require('../../assets/kurta/Embroidery/Renders/DDF01/Chest/E-BASE-S.webp'),
+            "E-BASE_R-S": require('../../assets/kurta/Embroidery/Renders/DDF01/Chest/E-BASE_R-S.webp')
+        } 
+    }
+};

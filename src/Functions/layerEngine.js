@@ -1,123 +1,202 @@
-// src/Functions/layerEngine.js
+const SHIRT_COLLARS = ['CR', 'CB', 'CT', 'CS', 'CE'];
+const MANDARIN_COLLARS = ['CM', 'CC', 'CN'];
+const CATEGORY_A_SADRI = ['SR', 'RR', 'SS', 'AA', 'BB', 'CC', 'DD', 'EE', 'FF', 'GG', 'HH', 'KK'];
+const CATEGORY_B_BASE_TYPES = ['L', 'M', 'N'];
 
-export const getKurtaLayerCodes = (selections, selectedButton, viewMode = 0, hasCoat = false, hasSadri = false) => {
+const isShirtCollar = (collar) => SHIRT_COLLARS.includes(collar);
+const isMandarinCollar = (collar) => MANDARIN_COLLARS.includes(collar);
+const getSadriCollarSuffix = (collar) => {
+    if (isMandarinCollar(collar)) return 'C';
+    if (isShirtCollar(collar)) return 'S';
+    return 'R';
+};
 
-    // --- 1. EXTREME SAFETY CHECKS ---
+const getKurtaBaseCode = (collar, lengthStr, bottomCut, hasOuterwear, forceMandarin) => {
+    const longLength = lengthStr === 'K';
+    const roundCut = bottomCut === 'R';
+    const useMandarin = forceMandarin || isMandarinCollar(collar);
+    const useShirt = !useMandarin && isShirtCollar(collar);
+
+    if (useShirt) {
+        if (longLength) {
+            return `${roundCut ? 'D' : 'T'}${hasOuterwear ? '0' : ''}`;
+        }
+        return `${roundCut ? 'P' : 'Q'}${hasOuterwear ? '0' : ''}`;
+    }
+
+    if (longLength) {
+        return roundCut ? 'R' : 'S';
+    }
+    return roundCut ? 'K' : 'L';
+};
+
+export const getSadriLayerCodes = (sadriCode, selections = {}, selectedButton, viewMode = 0, slideIndex = 0) => {
+    if (!sadriCode) return [];
+
+    const bSuffix = viewMode === 0 ? '-F' : '-S';
+    const collar = selections.collar || 'CM';
+    const isCategoryA = CATEGORY_A_SADRI.includes(sadriCode);
+    const categoryPrefix = sadriCode?.charAt(0);
+
+    let finalSadriCode = sadriCode;
+    if (!isCategoryA) {
+        if (CATEGORY_B_BASE_TYPES.includes(sadriCode)) {
+            finalSadriCode = `${sadriCode}${getSadriCollarSuffix(collar)}`;
+        } else if (CATEGORY_B_BASE_TYPES.includes(categoryPrefix)) {
+            finalSadriCode = `${categoryPrefix}${getSadriCollarSuffix(collar)}`;
+        }
+    }
+
+    const layersToRender = [];
+
+    const addGarmentPart = (partName, fabricCode, baseZIndex, type = 'fabric') => {
+        layersToRender.push({ code: fabricCode, zIndex: baseZIndex, type: type });
+
+        if (selections.embroideryID && ['SadriBase'].includes(partName)) {
+            layersToRender.push({
+                code: `E-${fabricCode}${bSuffix}`,
+                zIndex: baseZIndex + 1,
+                type: 'embroidery',
+                collectionID: selections.embroideryID,
+                part: partName
+            });
+        }
+    };
+
+    addGarmentPart('SadriBase', `${finalSadriCode}${bSuffix}`, 60);
+
+    if (selectedButton?.material !== 'Ring') {
+        layersToRender.push({ code: `KH${bSuffix}`, zIndex: 60 + 5 - 1, type: 'fabric' });
+        layersToRender.push({ code: `KB${bSuffix}`, zIndex: 60 + 5, type: 'button' });
+    }
+
+    return layersToRender;
+};
+
+export const getKurtaLayerCodes = (
+    selections,
+    selectedButton,
+    viewMode = 0,
+    slideIndex = 0,
+    hasCoat = false,
+    hasSadri = false,
+    sadriCode = null
+) => {
     if (!selections) return [];
 
-    // Agar koi value undefined hai, toh use default de do taaki crash na ho
-    const collar = selections.collar || "CM";
-    const bottomCut = selections.bottomCut || "R";
-    const lengthStr = selections.length || "K";
-    const placketStyle = selections.placketStyle || "NS";
-    const pocketQty = selections.pocketQty || "00";
-    const pocketShape = selections.pocketShape || "R";
-    const flapYes = selections.flapYes || "0";
-    const flapShape = selections.flapShape || "R";
-    const epaulette = selections.epaulette || "0";
-    const sleeve = selections.sleeve || "SN";
-    const cuffStyle = selections.cuffStyle || "US1";
+    const collar = selections.collar || 'CM';
+    const bottomCut = selections.bottomCut || 'R';
+    const lengthStr = selections.length || 'K';
+    const placketStyle = selections.placketStyle || 'NS';
+    const pocketQty = selections.pocketQty || '00';
+    const pocketShape = selections.pocketShape || 'R';
+    const flapYes = selections.flapYes || '0';
+    const flapShape = selections.flapShape || 'R';
+    const epaulette = selections.epaulette || '0';
+    const sleeve = selections.sleeve || 'SN';
+    const cuffStyle = selections.cuffStyle || 'US1';
 
-    const shirt_collars = ["CR", "CB", "CT", "CS", "CE"];
-    const isShirtCollar = shirt_collars.includes(collar);
+    const forceMandarin = hasSadri && slideIndex === 0 && sadriCode && CATEGORY_A_SADRI.includes(sadriCode);
+    const effectiveCollar = forceMandarin ? 'CM' : collar;
+    const outerwearFlag = hasCoat || hasSadri;
+    const baseCode = getKurtaBaseCode(effectiveCollar, lengthStr, bottomCut, outerwearFlag && !forceMandarin, forceMandarin);
+    const pajamaType = selections.pajamaType || 'PJ';
+    const bSuffix = viewMode === 0 ? '-F' : '-S';
+    const isRing = selectedButton?.material === 'Ring';
 
-    const isLongLength = lengthStr === 'K';
-    const isRoundCut = bottomCut === 'R';
-    
-    // ViewMode suffix
-    const bSuffix = viewMode === 0 ? "-F" : "-S";
-    // Check ring
-    const isRing = selectedButton?.material === "Ring";
+    const layersToRender = [];
 
-    let layersToRender = [];
+    // Helper function to enforce the Z-Index Sandwich
+    const addGarmentPart = (partName, fabricCode, baseZIndex, type = 'fabric') => {
+        // 1. BOTTOM LAYER: The Fabric itself
+        layersToRender.push({ code: fabricCode, zIndex: baseZIndex, type: type });
 
-    // --- 2. BASE LAYER ---
-    let baseCode = "R";
-    if (isShirtCollar) {
-        if (isLongLength) {
-            baseCode = isRoundCut ? "D" : "T";
-            if (hasCoat || hasSadri) baseCode += "0";
-        } else {
-            baseCode = isRoundCut ? "P" : "Q";
-            if (hasCoat || hasSadri) baseCode += "0";
+        // 2. MIDDLE LAYER: The Embroidery (Only if it exists for this specific part)
+        if (selections.embroideryID && ['Chest', 'Collar', 'Sleeve'].includes(partName)) {
+            layersToRender.push({ 
+                code: `E-${fabricCode}${bSuffix}`, 
+                zIndex: baseZIndex + 1, // STRICTLY +1 over the fabric
+                type: 'embroidery',
+                collectionID: selections.embroideryID,
+                part: partName 
+            });
         }
-    } else {
-        if (isLongLength) {
-            baseCode = isRoundCut ? "R" : "S";
-        } else {
-            baseCode = isRoundCut ? "K" : "L";
-        }
-    }
-    layersToRender.push({ code: baseCode, zIndex: 10, type: 'fabric' });
+    };
 
-    // --- 3. PLACKET ---
+    // Pajama (Base Z-Index 5)
+    addGarmentPart('Pajama', `${pajamaType}-${baseCode}`, 5, 'pajama');
+
+    // Base/Chest (Base Z-Index 10)
+    addGarmentPart('Chest', baseCode, 10);
+
+    // Placket (Base Z-Index 20)
     let placketCode = placketStyle;
-    if (hasCoat || hasSadri) {
-        const prefix = placketStyle.charAt(0); // N or Q
-        placketCode = `${prefix}T3`;
+    if (outerwearFlag) {
+        placketCode = `${placketStyle.charAt(0)}T3`;
     } else {
-        placketCode = placketCode + (isShirtCollar ? "3" : "4");
+        placketCode = `${placketStyle}${isShirtCollar(effectiveCollar) ? '3' : '4'}`;
     }
-    layersToRender.push({ code: placketCode, zIndex: 20, type: 'fabric' });
+    addGarmentPart('Placket', placketCode, 20);
 
-    if (placketCode === "NS4" || placketCode === "QS4") {
-        if (!isRing) layersToRender.push({ code: "BHC", zIndex: 21, type: 'fabric' });
-        layersToRender.push({ code: `BKC${bSuffix}`, zIndex: 90, type: 'button' });
-    } else if (placketCode === "NS3" || placketCode === "QS3") {
-        if (!isRing) layersToRender.push({ code: "BHN", zIndex: 21, type: 'fabric' });
-        layersToRender.push({ code: `BKN${bSuffix}`, zIndex: 90, type: 'button' });
-    } else if (placketCode === "NT3" || placketCode === "QT3") {
-        if (!isRing) layersToRender.push({ code: "BHT", zIndex: 21, type: 'fabric' });
-        layersToRender.push({ code: `BKT${bSuffix}`, zIndex: 90, type: 'button' });
+    // Placket Holes & Buttons (+5)
+    if (placketCode === 'NS4' || placketCode === 'QS4') {
+        if (!isRing) layersToRender.push({ code: 'BHC', zIndex: 20 + 5 - 1, type: 'fabric' });
+        layersToRender.push({ code: `BKC${bSuffix}`, zIndex: 20 + 5, type: 'button' });
+    } else if (placketCode === 'NS3' || placketCode === 'QS3') {
+        if (!isRing) layersToRender.push({ code: 'BHN', zIndex: 20 + 5 - 1, type: 'fabric' });
+        layersToRender.push({ code: `BKN${bSuffix}`, zIndex: 20 + 5, type: 'button' });
+    } else if (placketCode === 'NT3' || placketCode === 'QT3') {
+        if (!isRing) layersToRender.push({ code: 'BHT', zIndex: 20 + 5 - 1, type: 'fabric' });
+        layersToRender.push({ code: `BKT${bSuffix}`, zIndex: 20 + 5, type: 'button' });
     }
 
-    // --- 4. POCKETS & FLAPS ---
-    if (pocketQty !== "00") {
-        layersToRender.push({ code: `R${pocketShape}`, zIndex: 30, type: 'fabric' });
-        if (flapYes === "1") {
-            layersToRender.push({ code: `FR${flapShape}`, zIndex: 31, type: 'fabric' });
-            if (!isRing) layersToRender.push({ code: "BHR", zIndex: 32, type: 'fabric' });
-            layersToRender.push({ code: `BPR${bSuffix}`, zIndex: 91, type: 'button' });
+    // Pockets (Base Z-Index 30)
+    if (pocketQty !== '00') {
+        addGarmentPart('Pocket', `R${pocketShape}`, 30);
+        if (flapYes === '1') {
+            addGarmentPart('Flap', `FR${flapShape}`, 32);
+            if (!isRing) layersToRender.push({ code: 'BHR', zIndex: 32 + 5 - 1, type: 'fabric' });
+            layersToRender.push({ code: `BPR${bSuffix}`, zIndex: 32 + 5, type: 'button' });
         }
 
-        if (pocketQty === "11") {
-            layersToRender.push({ code: `L${pocketShape}`, zIndex: 33, type: 'fabric' });
-            if (flapYes === "1") {
-                layersToRender.push({ code: `FL${flapShape}`, zIndex: 34, type: 'fabric' });
-                if (!isRing) layersToRender.push({ code: "BHL", zIndex: 35, type: 'fabric' });
-                layersToRender.push({ code: `BPL${bSuffix}`, zIndex: 91, type: 'button' });
+        if (pocketQty === '11') {
+            addGarmentPart('Pocket', `L${pocketShape}`, 34);
+            if (flapYes === '1') {
+                addGarmentPart('Flap', `FL${flapShape}`, 36);
+                if (!isRing) layersToRender.push({ code: 'BHL', zIndex: 36 + 5 - 1, type: 'fabric' });
+                layersToRender.push({ code: `BPL${bSuffix}`, zIndex: 36 + 5, type: 'button' });
             }
         }
     }
 
-    // --- 5. EPAULETTE (Shoulder) ---
-    if (epaulette === "SE") {
-        layersToRender.push({ code: hasSadri ? "SE0" : "SE", zIndex: 35, type: 'fabric' });
-        if (!isRing) layersToRender.push({ code: "HE", zIndex: 36, type: 'fabric' });
-        layersToRender.push({ code: `BE${bSuffix}`, zIndex: 92, type: 'button' });
+    // Epaulette (Base Z-Index 45)
+    if (epaulette === 'SE') {
+        addGarmentPart('Epaulette', outerwearFlag ? 'SE0' : 'SE', 45);
+        if (!isRing) layersToRender.push({ code: 'HE', zIndex: 45 + 5 - 1, type: 'fabric' });
+        layersToRender.push({ code: `BE${bSuffix}`, zIndex: 45 + 5, type: 'button' });
     }
 
-    // --- 6. SLEEVES & CUFFS ---
-    let sleeveCode = hasCoat ? "SS" : sleeve;
-    layersToRender.push({ code: sleeveCode, zIndex: 40, type: 'fabric' });
+    // Sleeves (Base Z-Index 55)
+    const sleeveCode = hasCoat ? 'SS' : sleeve;
+    addGarmentPart('Sleeve', sleeveCode, 55);
 
-    if (sleeve === "SC") {
-        layersToRender.push({ code: cuffStyle, zIndex: 41, type: 'fabric' });
-        if (cuffStyle.endsWith("1")) {
-            if (!isRing) layersToRender.push({ code: "BH2", zIndex: 42, type: 'fabric' });
-            layersToRender.push({ code: `BC2${bSuffix}`, zIndex: 93, type: 'button' });
-        } else if (cuffStyle.endsWith("2")) {
-            if (!isRing) layersToRender.push({ code: "BH4", zIndex: 42, type: 'fabric' });
-            layersToRender.push({ code: `BC4${bSuffix}`, zIndex: 93, type: 'button' });
+    if (sleeve === 'SC') {
+        addGarmentPart('Cuff', cuffStyle, 57);
+        if (cuffStyle.endsWith('1')) {
+            if (!isRing) layersToRender.push({ code: 'BH2', zIndex: 57 + 5 - 1, type: 'fabric' });
+            layersToRender.push({ code: `BC2${bSuffix}`, zIndex: 57 + 5, type: 'button' });
+        } else if (cuffStyle.endsWith('2')) {
+            if (!isRing) layersToRender.push({ code: 'BH4', zIndex: 57 + 5 - 1, type: 'fabric' });
+            layersToRender.push({ code: `BC4${bSuffix}`, zIndex: 57 + 5, type: 'button' });
         }
     }
 
-    // --- 7. COLLAR ---
-    layersToRender.push({ code: collar, zIndex: 50, type: 'fabric' });
-    
-    if (collar === "CB") {
-        if (!isRing) layersToRender.push({ code: "CBH", zIndex: 51, type: 'fabric' });
-        layersToRender.push({ code: `CBB${bSuffix}`, zIndex: 94, type: 'button' });
+    // Collar (Base Z-Index 65)
+    addGarmentPart('Collar', effectiveCollar, 65);
+
+    if (effectiveCollar === 'CB') {
+        if (!isRing) layersToRender.push({ code: 'CBH', zIndex: 65 + 5 - 1, type: 'fabric' });
+        layersToRender.push({ code: `CBB${bSuffix}`, zIndex: 65 + 5, type: 'button' });
     }
 
     return layersToRender;
