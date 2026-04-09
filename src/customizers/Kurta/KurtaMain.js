@@ -5,6 +5,7 @@ import { BlurView } from 'expo-blur';
 
 import { DUMMY_FABRICS, INITIAL_SELECTION, DUMMY_BUTTONS, EMBROIDERY_COLLECTIONS } from '../../Data/dummyData';
 import { KURTA_STYLE_OPTIONS } from '../../Data/styleData';
+import { useOutfit } from '../../context/OutfitContext';
 
 // --- YAHAN MODEL COMPONENT IMPORT HUA HAI ---
 import KurtaModel from './components/KurtaModel';
@@ -17,6 +18,7 @@ import { IconFabric, IconStyle, IconEmbroidery, IconExtras } from '../../icons/E
 const { width } = Dimensions.get('window');
 
 export default function KurtaMain() {
+    const { selectedItems } = useOutfit();
     const [activePanel, setActivePanel] = useState(null);
     const [isPanelOpen, setIsPanelOpen] = useState(false);
 
@@ -52,6 +54,8 @@ export default function KurtaMain() {
         setSelections(prev => ({ ...prev, [type]: value }));
         if (type === 'cuffStyle') {
             carouselRef.current?.scrollToIndex(1);
+        } else if (type === 'sadriType') {
+            carouselRef.current?.scrollToIndex(0);
         }
     };
 
@@ -148,10 +152,14 @@ export default function KurtaMain() {
 
                             {KURTA_STYLE_OPTIONS.map((section, idx) => {
                                 if (section.dependency) {
-                                    const depValue = selections[section.dependency.key];
-                                    if (section.dependency.notValue && depValue === section.dependency.notValue) return null;
-                                    if (section.dependency.andNotValue && depValue === section.dependency.andNotValue) return null;
-                                    if (section.dependency.value && depValue !== section.dependency.value) return null;
+                                    if (section.dependency.isContextItem) {
+                                        if (!selectedItems.includes(section.dependency.isContextItem)) return null;
+                                    } else {
+                                        const depValue = selections[section.dependency.key];
+                                        if (section.dependency.notValue && depValue === section.dependency.notValue) return null;
+                                        if (section.dependency.andNotValue && depValue === section.dependency.andNotValue) return null;
+                                        if (section.dependency.value && depValue !== section.dependency.value) return null;
+                                    }
                                 }
 
                                 return (
@@ -231,6 +239,45 @@ export default function KurtaMain() {
     const embroideryPrice = selections.embroideryID ? (EMBROIDERY_COLLECTIONS.find(e => e.id === selections.embroideryID)?.price || 0) : 0;
     const totalPrice = basePrice + pajamaFabricPrice + embroideryPrice;
 
+    const hasSadri = selectedItems.includes('sadri');
+    const sadriCode = selections.sadriType || 'SR';
+
+    const buildSlides = () => {
+        const baseProps = { selections, selectedFabric, selectedButton, selectedPajamaFabric, hasSadri, sadriCode };
+        
+        if (hasSadri) {
+            return [
+                <View key="full" style={{ flex: 1, position: 'relative', width: '100%', height: '100%' }}>
+                    <KurtaModel {...baseProps} slideIndex={0} />
+                </View>,
+                <View key="inner" style={{ flex: 1, position: 'relative', width: '100%', height: '100%' }}>
+                    <KurtaModel {...baseProps} slideIndex={1} />
+                </View>,
+                <View key="folded" style={{ flex: 1, position: 'relative', width: '100%', height: '100%' }}>
+                    <KurtaFolded {...baseProps} />
+                </View>,
+                <View key="pajama_only" style={{ flex: 1, position: 'relative', width: '100%', height: '100%' }}>
+                    <PajamaStylePreview {...baseProps} />
+                </View>,
+                <View key="zoomed" style={{ flex: 1, position: 'relative', width: '100%', height: '100%', transform: [{scale: 1.5}, {translateY: -100}] }}>
+                    <KurtaModel {...baseProps} slideIndex={4} />
+                </View>
+            ];
+        }
+
+        return [
+            <View key="full" style={{ flex: 1, position: 'relative', width: '100%', height: '100%' }}>
+                <KurtaModel {...baseProps} slideIndex={0} />
+            </View>,
+            <View key="folded" style={{ flex: 1, position: 'relative', width: '100%', height: '100%' }}>
+                <KurtaFolded {...baseProps} />
+            </View>,
+            <View key="pajama_only" style={{ flex: 1, position: 'relative', width: '100%', height: '100%' }}>
+                <PajamaStylePreview {...baseProps} />
+            </View>
+        ];
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
@@ -245,17 +292,7 @@ export default function KurtaMain() {
             <View style={styles.modelContainer}>
                 <FullScreenCarousel
                     ref={carouselRef}
-                    data={[
-                        <View key="full" style={{ flex: 1, position: 'relative', width: '100%', height: '100%' }}>
-                            <KurtaModel selections={selections} selectedFabric={selectedFabric} selectedButton={selectedButton} selectedPajamaFabric={selectedPajamaFabric} />
-                        </View>,
-                        <View key="folded" style={{ flex: 1, position: 'relative', width: '100%', height: '100%' }}>
-                            <KurtaFolded selections={selections} selectedFabric={selectedFabric} selectedButton={selectedButton} selectedPajamaFabric={selectedPajamaFabric} />
-                        </View>,
-                        <View key="pajama_only" style={{ flex: 1, position: 'relative', width: '100%', height: '100%' }}>
-                            <PajamaStylePreview selections={selections} selectedPajamaFabric={selectedPajamaFabric} />
-                        </View>
-                    ]}
+                    data={buildSlides()}
                 />
             </View>
 
@@ -274,7 +311,11 @@ export default function KurtaMain() {
                 })}
             </View>
 
-            {isPanelOpen && <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={closePanel} />}
+            {isPanelOpen && (
+                <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={closePanel}>
+                    <BlurView tint="dark" intensity={15} style={StyleSheet.absoluteFill} />
+                </TouchableOpacity>
+            )}
 
             <Animated.View style={[styles.sidePanel, { transform: [{ translateX: slideAnim }] }]}>
                 <BlurView tint="light" intensity={80} style={StyleSheet.absoluteFill} />
@@ -287,7 +328,9 @@ export default function KurtaMain() {
 
             {isButtonModalOpen && (
                 <View style={styles.buttonModalOverlay}>
+                    <BlurView tint="dark" intensity={20} style={StyleSheet.absoluteFill} />
                     <View style={styles.buttonModalContainer}>
+                        <BlurView tint="light" intensity={90} style={StyleSheet.absoluteFill} />
                         <View style={styles.buttonModalHeader}>
                             <Text style={styles.buttonModalTitle}>Select Button</Text>
                             <TouchableOpacity onPress={() => setButtonModalOpen(false)}>
@@ -370,7 +413,7 @@ const styles = StyleSheet.create({
     iconButton: { width: 60, height: 60, backgroundColor: 'rgba(255, 255, 255, 0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)', borderRadius: 15, justifyContent: 'center', alignItems: 'center', marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 8, overflow: 'hidden' },
     iconButtonActive: { backgroundColor: '#14213D', shadowColor: '#14213D', shadowOpacity: 0.4, shadowRadius: 10, elevation: 10 },
     iconText: { fontSize: 11, color: '#14213D', fontWeight: 'bold', textAlign: 'center', zIndex: 2 },
-    overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 20 },
+    overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.3)', zIndex: 20 },
     sidePanel: { position: 'absolute', left: 0, top: 0, bottom: 90, width: width * 0.6, backgroundColor: 'rgba(255, 255, 255, 0.3)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)', zIndex: 5000, elevation: 5000, paddingTop: 60, shadowColor: '#000', shadowOffset: { width: 5, height: 0 }, shadowOpacity: 0.1, shadowRadius: 15, borderTopRightRadius: 0, borderBottomRightRadius: 0, overflow: 'hidden' },
     panelHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 25, marginBottom: 10, marginTop: -10 },
     panelTitle: { fontSize: 20, fontWeight: 'bold', color: '#333' },
@@ -408,17 +451,17 @@ const styles = StyleSheet.create({
     buttonBannerText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
     buttonIconWrapper: { width: '100%', height: 60, alignItems: 'center', justifyContent: 'center' },
     dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#222', marginHorizontal: 3 },
-    buttonModalOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, elevation: 9999, justifyContent: 'center', alignItems: 'center' },
-    buttonModalContainer: { width: '85%', maxHeight: '70%', backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden' },
-    buttonModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderColor: '#eee' },
+    buttonModalOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.3)', zIndex: 9999, elevation: 9999, justifyContent: 'center', alignItems: 'center' },
+    buttonModalContainer: { width: '85%', maxHeight: '70%', backgroundColor: 'rgba(255, 255, 255, 0.4)', borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.6)' },
+    buttonModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
     buttonModalTitle: { fontSize: 18, fontWeight: 'bold', color: '#14213D' },
-    buttonModalTabs: { flexDirection: 'row', justifyContent: 'space-around', backgroundColor: '#f9f9f9', paddingVertical: 10 },
+    buttonModalTabs: { flexDirection: 'row', justifyContent: 'space-around', backgroundColor: 'rgba(255, 255, 255, 0.3)', paddingVertical: 10 },
     buttonTab: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 15 },
     buttonTabActive: { backgroundColor: '#14213D' },
     buttonTabText: { fontSize: 12, fontWeight: 'bold', color: '#666' },
     buttonList: { padding: 20 },
-    buttonItem: { flexDirection: 'row', alignItems: 'center', padding: 15, borderRadius: 15, marginBottom: 10, backgroundColor: '#f5f5f5', borderWidth: 1, borderColor: 'transparent' },
-    buttonItemActive: { borderColor: '#14213D', backgroundColor: '#edf2fb' },
+    buttonItem: { flexDirection: 'row', alignItems: 'center', padding: 15, borderRadius: 15, marginBottom: 10, backgroundColor: 'rgba(255, 255, 255, 0.5)', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.8)' },
+    buttonItemActive: { borderColor: '#14213D', backgroundColor: 'rgba(237, 242, 251, 0.8)' },
     buttonItemIcon: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#ccc', marginRight: 15 },
     buttonItemName: { fontSize: 14, fontWeight: 'bold', color: '#333' },
     recommendedBadge: { fontSize: 9, color: '#27ae60', fontWeight: 'bold', marginTop: 2 }

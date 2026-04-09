@@ -50,12 +50,12 @@ export const DUMMY_BUTTONS = [
             "BPL-F": require('../../assets/images/buttons/fabric_button/render/button_001/BPL-F.webp'),
             "BE-F": require('../../assets/images/buttons/fabric_button/render/button_001/BE-F.webp'),
             "CBB-F": require('../../assets/images/buttons/fabric_button/render/button_001/CBB-F.webp'),
-            "BC2-F": null, 
+            "BC2-F": null,
             "BC4-F": null,
 
             "BKC-S": require('../../assets/images/buttons/fabric_button/render/button_001/BKC-S.webp'),
             "BKN-S": require('../../assets/images/buttons/fabric_button/render/button_001/BKN-S.webp'),
-            "BKT-S": null, 
+            "BKT-S": null,
             "BPR-S": require('../../assets/images/buttons/fabric_button/render/button_001/BPR-S.webp'),
             "BPL-S": require('../../assets/images/buttons/fabric_button/render/button_001/BPL-S.webp'),
             "BE-S": require('../../assets/images/buttons/fabric_button/render/button_001/BE-S.webp'),
@@ -91,7 +91,8 @@ export const INITIAL_SELECTION = {
     cuffStyle: 'US1',
     embroideryID: null, // Selected Embroidery ID
     pajamaType: 'PJ',
-    beltType: 'R'
+    beltType: 'R',
+    sadriType: 'SR'
 };
 
 export const KURTA_RENDERS = KURTA_RENDERS_SOURCE;
@@ -130,7 +131,7 @@ export const PAJAMA_RENDERS = {
     },
 };
 export const EMBROIDERY_RENDERS = {
-    "DDF01": { 
+    "DDF01": {
         display: {
             "E-D-F": require('../../assets/kurta/Embroidery/Renders/DDF01/Chest/E-D-F.webp'),
             "E-D0-F": require('../../assets/kurta/Embroidery/Renders/DDF01/Chest/E-D0-F.webp'),
@@ -144,12 +145,39 @@ export const EMBROIDERY_RENDERS = {
             "E-S-F": require('../../assets/kurta/Embroidery/Renders/DDF01/Chest/E-S-F.webp'),
             "E-T-F": require('../../assets/kurta/Embroidery/Renders/DDF01/Chest/E-T-F.webp'),
             "E-T0-F": require('../../assets/kurta/Embroidery/Renders/DDF01/Chest/E-T0-F.webp')
-        }, 
+        },
         folded: {
             "E-BASE-S": require('../../assets/kurta/Embroidery/Renders/DDF01/Chest/E-BASE-S.webp'),
             "E-BASE_C-S": require('../../assets/kurta/Embroidery/Renders/DDF01/Chest/E-BASE-S.webp'),
             "E-BASE_M-S": require('../../assets/kurta/Embroidery/Renders/DDF01/Chest/E-BASE-S.webp'),
             "E-BASE_R-S": require('../../assets/kurta/Embroidery/Renders/DDF01/Chest/E-BASE_R-S.webp')
-        } 
+        }
     }
+};
+
+export const SADRI_RENDERS = {
+    // CATEGORY A (Closed Neck)
+    "SR-F": require('../../assets/Sadri/renders/mnb/Display/SR.webp'), "SR-S": null,
+    "RR-F": require('../../assets/Sadri/renders/mnb/Display/RR.webp'), "RR-S": null,
+    "SS-F": require('../../assets/Sadri/renders/mnb/Display/SS.webp'), "SS-S": null,
+    "AA-F": require('../../assets/Sadri/renders/mnb/Display/AA.webp'), "AA-S": null,
+    "BB-F": require('../../assets/Sadri/renders/mnb/Display/BB.webp'), "BB-S": null,
+    "CC-F": require('../../assets/Sadri/renders/mnb/Display/CC.webp'), "CC-S": null,
+    "DD-F": require('../../assets/Sadri/renders/mnb/Display/DD.webp'), "DD-S": null,
+    "EE-F": require('../../assets/Sadri/renders/mnb/Display/EE.webp'), "EE-S": null,
+    "FF-F": require('../../assets/Sadri/renders/mnb/Display/FF.webp'), "FF-S": null,
+    "GG-F": require('../../assets/Sadri/renders/mnb/Display/GG.webp'), "GG-S": null,
+    "HH-F": require('../../assets/Sadri/renders/mnb/Display/HH.webp'), "HH-S": null,
+    "KK-F": require('../../assets/Sadri/renders/mnb/Display/KK.webp'), "KK-S": null,
+
+    // CATEGORY B (Deep V / Lapel)
+    "LR-F": require('../../assets/Sadri/renders/mnb/Display/LR.webp'), "LR-S": null,
+    "LS-F": require('../../assets/Sadri/renders/mnb/Display/LS.webp'), "LS-S": null,
+    "LC-F": require('../../assets/Sadri/renders/mnb/Display/LC.webp'), "LC-S": null,
+    "MR-F": require('../../assets/Sadri/renders/mnb/Display/MR.webp'), "MR-S": null,
+    "MS-F": require('../../assets/Sadri/renders/mnb/Display/MS.webp'), "MS-S": null,
+    "MC-F": require('../../assets/Sadri/renders/mnb/Display/MC.webp'), "MC-S": null,
+    "NR-F": require('../../assets/Sadri/renders/mnb/Display/NR.webp'), "NR-S": null,
+    "NS-F": require('../../assets/Sadri/renders/mnb/Display/NS.webp'), "NS-S": null,
+    "NC-F": require('../../assets/Sadri/renders/mnb/Display/NC.webp'), "NC-S": null,
 };

@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Image, StyleSheet } from 'react-native';
 
 // ENGINE & DATA IMPORTS
-import { KURTA_RENDERS, EMBROIDERY_RENDERS, PAJAMA_RENDERS } from '../../../Data/dummyData';
-import { getKurtaLayerCodes } from '../../../Functions/layerEngine';
+import { KURTA_RENDERS, EMBROIDERY_RENDERS, PAJAMA_RENDERS, SADRI_RENDERS } from '../../../Data/dummyData';
+import { getKurtaLayerCodes, getSadriLayerCodes } from '../../../Functions/layerEngine';
 
 // ASSETS IMPORTS
 import kurta_body from '../../../../assets/images/body/kurta_body.webp';
@@ -42,16 +42,23 @@ const SmartLayer = ({ src, zIndex }) => {
     );
 };
 
-export default function KurtaModel({ selections, selectedFabric, selectedButton, selectedPajamaFabric }) {
+export default function KurtaModel({ selections, selectedFabric, selectedButton, selectedPajamaFabric, hasSadri, sadriCode, slideIndex = 0 }) {
 
     // SAFETY CHECK: Jab tak data ready na ho, model render mat karo
     if (!selections || !selectedFabric) return null;
 
     const handsImage = selections.sleeve === "SC" ? kurta_hand_c : kurta_hand_n;
 
-    // ENGINE KO BULAO: Ye function wo list (array) dega jo kapde pehnne hain
-    // viewMode 0 = Display (Full Body)
-    const layersToRender = getKurtaLayerCodes(selections, selectedButton, 0) || [];
+    // ENGINE KO BULAO: Kurta Arrays
+    const kurtaLayers = getKurtaLayerCodes(selections, selectedButton, 0, slideIndex, false, hasSadri, sadriCode) || [];
+
+    // ENGINE KO BULAO: Sadri Arrays
+    let sadriLayers = [];
+    if (hasSadri && (slideIndex === 0 || slideIndex === 4)) {
+        sadriLayers = getSadriLayerCodes(sadriCode, selections, selectedButton, 0, slideIndex) || [];
+    }
+
+    const layersToRender = [...kurtaLayers, ...sadriLayers].sort((a, b) => a.zIndex - b.zIndex);
 
     // DATABASE: Us kapde ki saari images yahan se nikalo
     const fabricRenders = KURTA_RENDERS[selectedFabric.fabricID]?.display || {};
@@ -75,6 +82,8 @@ export default function KurtaModel({ selections, selectedFabric, selectedButton,
                     imageSource = EMBROIDERY_RENDERS[layerObj.collectionID]?.display?.[layerObj.code];
                 } else if (layerObj.type === 'pajama') {
                     imageSource = pajamaRenders[layerObj.code];
+                } else if (layerObj.type === 'sadri_fabric') {
+                    imageSource = SADRI_RENDERS[layerObj.code];
                 } else {
                     imageSource = fabricRenders[layerObj.code];
                 }
