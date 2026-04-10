@@ -89,7 +89,7 @@ export const getKurtaLayerCodes = (
     // Overrides ONLY apply when outerwear is visible in front view.
     // ─────────────────────────────────────────────────────────────────────
     const effectiveSelections = { ...selections };
-    const outerwearVisible = viewMode === 0 && (hasCoat || hasSadri);
+    const outerwearVisible = (viewMode === 0 || viewMode === 4) && (hasCoat || hasSadri);
 
     if (outerwearVisible) {
         // ── RULE 1: UNIVERSAL (Coat & Sadri) ─────────────────────────────
@@ -171,7 +171,7 @@ export const getKurtaLayerCodes = (
     const needsOuterwearBase = outerwearVisible && !forceMandarin && (hasCoat || hasSadri);
     const baseCode = getKurtaBaseCode(collar, lengthStr, bottomCut, needsOuterwearBase, forceMandarin);
 
-    const bSuffix = viewMode === 0 ? '-F' : '-S';
+    const bSuffix = '-F';
     const isRing  = selectedButton?.material === 'Ring';
 
     const layersToRender = [];

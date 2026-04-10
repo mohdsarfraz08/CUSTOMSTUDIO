@@ -244,7 +244,7 @@ export default function KurtaMain() {
 
     const buildSlides = () => {
         const baseProps = { selections, selectedFabric, selectedButton, selectedPajamaFabric, hasSadri, sadriCode };
-        
+
         if (hasSadri) {
             return [
                 <View key="full" style={{ flex: 1, position: 'relative', width: '100%', height: '100%' }}>
@@ -259,7 +259,9 @@ export default function KurtaMain() {
                 <View key="pajama_only" style={{ flex: 1, position: 'relative', width: '100%', height: '100%' }}>
                     <PajamaStylePreview {...baseProps} />
                 </View>,
-                <View key="zoomed" style={{ flex: 1, position: 'relative', width: '100%', height: '100%', transform: [{scale: 1.5}, {translateY: -100}] }}>
+
+                // Zoomed view of the sadri
+                <View key="zoomed" style={{ flex: 1, position: 'relative', width: '100%', height: '100%', transform: [{ scale: 1.5 }, { translateY: 100 }] }}>
                     <KurtaModel {...baseProps} slideIndex={4} />
                 </View>
             ];
