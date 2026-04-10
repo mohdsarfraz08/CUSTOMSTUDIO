@@ -164,7 +164,7 @@ export const getKurtaLayerCodes = (
     const pajamaType   = effectiveSelections.pajamaType   || 'PJ';
 
     // Determine whether the collar is now effectively mandarin (Cat A forces it).
-    const isCatASadri     = hasSadri && !hasCoat && CATEGORY_A_SADRI.includes(currentSadriCode);
+    const isCatASadri     = outerwearVisible && hasSadri && !hasCoat && CATEGORY_A_SADRI.includes(currentSadriCode);
     const forceMandarin   = isCatASadri; // Cat A always resolves to mandarin base.
 
     // For the base code: outerwear '0' suffix applies for Category B shirt-collar
