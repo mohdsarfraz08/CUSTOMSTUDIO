@@ -1,21 +1,20 @@
-// metro.config.js
 const path = require('path');
 const { getDefaultConfig } = require('expo/metro-config');
 
-module.exports = (async () => {
-  const config = await getDefaultConfig(__dirname);
-  const { assetExts, sourceExts } = config.resolver;
+const config = getDefaultConfig(__dirname);
 
-  // Add '.svg' to sourceExts so that Metro processes them
-  config.resolver.sourceExts = [...sourceExts, 'svg'];
-  // Remove '.svg' from assetExts if it's there (generally not needed for Expo, but safe)
-  config.resolver.assetExts = assetExts.filter((ext) => ext !== 'svg');
+// Route SVG imports through transformer (required for .svg component imports).
+config.transformer = {
+  ...(config.transformer ?? {}),
+  babelTransformerPath: require.resolve('react-native-svg-transformer/expo'),
+};
+config.resolver.assetExts = config.resolver.assetExts.filter((ext) => ext !== 'svg');
+config.resolver.sourceExts = [...config.resolver.sourceExts, 'svg'];
 
-  // Peer of react-native-reanimated 4.x; pin resolution to app node_modules
-  config.resolver.extraNodeModules = {
-    ...(config.resolver.extraNodeModules ?? {}),
-    'react-native-worklets': path.resolve(__dirname, 'node_modules/react-native-worklets'),
-  };
+// Peer of react-native-reanimated 4.x; pin resolution to app node_modules.
+config.resolver.extraNodeModules = {
+  ...(config.resolver.extraNodeModules ?? {}),
+  'react-native-worklets': path.resolve(__dirname, 'node_modules/react-native-worklets'),
+};
 
-  return config;
-})();
+module.exports = config;

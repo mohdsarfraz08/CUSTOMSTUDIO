@@ -82,7 +82,8 @@ export const getSadriLayerCodes = (sadriCode, selections = {}, selectedSadriButt
 
     addGarmentPart('SadriBase', `${finalSadriCode}${bSuffix}`, 75, 'sadri_fabric');
 
-    if (selectedSadriButton?.material !== 'Ring') {
+    const hideSadriButtons = finalSadriCode === 'KK';
+    if (!hideSadriButtons && selectedSadriButton?.material !== 'Ring') {
         layersToRender.push({ code: `B${finalSadriCode}${bSuffix}`, zIndex: 80, type: 'sadri_button' });
     }
 

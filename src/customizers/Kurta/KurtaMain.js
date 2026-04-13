@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { DUMMY_FABRICS, INITIAL_SELECTION, DUMMY_BUTTONS, DUMMY_SADRI_BUTTONS, EMBROIDERY_COLLECTIONS, EMBROIDERY_RENDERS } from '../../Data/dummyData';
+import { DUMMY_FABRICS, INITIAL_SELECTION, DUMMY_BUTTONS, DUMMY_SADRI_BUTTONS, DUMMY_COAT_BUTTONS, EMBROIDERY_COLLECTIONS, EMBROIDERY_RENDERS } from '../../Data/dummyData';
 import { KURTA_STYLE_OPTIONS } from '../../Data/styleData';
 import { useOutfit } from '../../context/OutfitContext';
 
@@ -19,7 +19,7 @@ import { IconFabric, IconStyle, IconEmbroidery, IconExtras } from '../../icons/E
 /** Placeholder — swap `ExtrasTrayPlaceholder` or map per slot when you add real assets */
 import ExtrasTrayPlaceholder from '../../../assets/images/extra_icons/add.png';
 
-const EXTRAS_TRAY_SOURCES = Array.from({ length: 5 }, (_, i) => ({ id: i, source: ExtrasTrayPlaceholder }));
+const EXTRAS_TRAY_SOURCES = Array.from({ length: 4 }, (_, i) => ({ id: i, source: ExtrasTrayPlaceholder }));
 
 const { width } = Dimensions.get('window');
 
@@ -52,10 +52,13 @@ export default function KurtaMain() {
     });
     const [selectedButton, setSelectedButton] = useState(INITIAL_SELECTION?.button || (DUMMY_BUTTONS ? DUMMY_BUTTONS[0] : null));
     const [selectedSadriButton, setSelectedSadriButton] = useState(DUMMY_SADRI_BUTTONS ? DUMMY_SADRI_BUTTONS[0] : null);
+    const [selectedCoatButton, setSelectedCoatButton] = useState(DUMMY_COAT_BUTTONS ? DUMMY_COAT_BUTTONS[0] : null);
     const [isButtonModalOpen, setButtonModalOpen] = useState(false);
     const [isSadriButtonModalOpen, setSadriButtonModalOpen] = useState(false);
+    const [isCoatButtonModalOpen, setCoatButtonModalOpen] = useState(false);
     const [buttonModalTab, setButtonModalTab] = useState('Plastic');
     const [sadriButtonModalTab, setSadriButtonModalTab] = useState('Plastic');
+    const [coatButtonModalTab, setCoatButtonModalTab] = useState('Plastic');
     const [selectedPajamaFabric, setSelectedPajamaFabric] = useState(DUMMY_FABRICS ? DUMMY_FABRICS[0] : {});
     const [selectedSadriFabric, setSelectedSadriFabric] = useState(DUMMY_FABRICS ? DUMMY_FABRICS[0] : {});
     const [fabricTab, setFabricTab] = useState('Kurta'); // 'Kurta' | 'Pajama' | 'Sadri'
@@ -96,11 +99,11 @@ export default function KurtaMain() {
         if (isPanelOpen) closePanel();
         setExtrasTrayOpen(true);
         extrasTrayAnim.setValue(0);
-        Animated.spring(extrasTrayAnim, { toValue: 1, friction: 9, tension: 80, useNativeDriver: true }).start();
+        Animated.timing(extrasTrayAnim, { toValue: 1, duration: 900, easing: Easing.out(Easing.circle), useNativeDriver: true }).start();
     };
 
     const closePanel = () => {
-        Animated.timing(slideAnim, { toValue: -width, duration: 250, easing: Easing.in(Easing.ease), useNativeDriver: true }).start(() => {
+        Animated.timing(slideAnim, { toValue: -width, duration: 250, easing: Easing.in(Easing.circle), useNativeDriver: true }).start(() => {
             setIsPanelOpen(false); setActivePanel(null);
         });
     };
@@ -280,6 +283,40 @@ export default function KurtaMain() {
                                                 </View>
                                             </View>
                                         )}
+                                        {section.key === 'coatType' && section.title === 'Single Brested' && selectedItems.includes('coat') && (
+                                            <View style={{ marginBottom: 15 }}>
+                                                <View style={styles.buttonBanner}>
+                                                    <Text style={styles.buttonBannerText}>Coat Button</Text>
+                                                </View>
+                                                <View style={styles.optionRow}>
+                                                    <View style={{ width: '48%', marginBottom: 10 }}>
+                                                        <View style={styles.buttonIconWrapper}>
+                                                            {selectedCoatButton && selectedCoatButton.icon ? (
+                                                                <Image source={selectedCoatButton.icon} style={{ width: 45, height: 45 }} resizeMode="contain" />
+                                                            ) : (
+                                                                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#888' }} />
+                                                            )}
+                                                        </View>
+                                                        <Text style={[styles.optionLabel, { color: '#14213D', fontSize: 13, fontWeight: 'bold', marginTop: 5 }]}>
+                                                            Button 1
+                                                        </Text>
+                                                    </View>
+
+                                                    <View style={{ width: '48%', marginBottom: 10 }}>
+                                                        <TouchableOpacity style={styles.buttonIconWrapper} onPress={() => setCoatButtonModalOpen(true)}>
+                                                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                                                                <View style={styles.dot} />
+                                                                <View style={styles.dot} />
+                                                                <View style={styles.dot} />
+                                                            </View>
+                                                        </TouchableOpacity>
+                                                        <Text style={[styles.optionLabel, { color: '#14213D', fontSize: 13, fontWeight: 'bold', marginTop: 5 }]}>
+                                                            More{"\n"}options
+                                                        </Text>
+                                                    </View>
+                                                </View>
+                                            </View>
+                                        )}
                                         <Text style={[styles.sectionTitle, { marginBottom: 10 }]}>{section.title}</Text>
                                         <View style={styles.optionRow}>
                                             {section.options.map((opt) => {
@@ -295,7 +332,7 @@ export default function KurtaMain() {
                                                             }}
                                                         >
                                                             <BlurView tint="light" intensity={30} style={StyleSheet.absoluteFill} />
-                                                            {IconComponent ? <IconComponent size={75} /> : <Text>Icon</Text>}
+                                                            {IconComponent ? <IconComponent size={120} /> : <Text>Icon</Text>}
                                                         </TouchableOpacity>
                                                         <Text style={[styles.optionLabel, { color: isActive ? '#000' : '#555' }]}>{opt.label}</Text>
                                                     </View>
@@ -414,7 +451,7 @@ export default function KurtaMain() {
     const sadriCode = selections.sadriType || 'SR';
 
     const buildSlides = () => {
-        const baseProps = { selections, selectedFabric, selectedButton, selectedSadriButton, selectedPajamaFabric, selectedSadriFabric, hasSadri, sadriCode };
+        const baseProps = { selections, selectedFabric, selectedButton, selectedSadriButton, selectedCoatButton, selectedPajamaFabric, selectedSadriFabric, hasSadri, sadriCode };
 
         if (hasOuterwear) {
             return [
@@ -486,71 +523,87 @@ export default function KurtaMain() {
             </View>
 
             <View style={styles.rightMenu}>
-                {!extrasTrayOpen ? (
-                    <>
-                        {[IconFabric, IconStyle, IconEmbroidery].map((IconComponent, index) => {
-                            const isActive = activePanel === IconComponent.displayName;
-                            return (
-                                <TouchableOpacity key={index} style={[styles.iconButton, isActive && styles.iconButtonActive]} onPress={() => togglePanel(IconComponent.displayName)}>
-                                    <BlurView tint="light" intensity={55} style={StyleSheet.absoluteFill} />
-                                    <IconComponent size={28} color={isActive ? '#fff' : '#14213D'} />
-                                    <Text style={[styles.iconText, isActive && { color: '#fff' }, { marginTop: 4 }]}>
-                                        {IconComponent.displayName === 'Embroidery' ? 'EMB' : IconComponent.displayName.toUpperCase()}
-                                    </Text>
-                                </TouchableOpacity>
-                            );
-                        })}
-                        <TouchableOpacity
-                            style={styles.iconButton}
-                            onPress={toggleExtrasTray}
-                        >
-                            <BlurView tint="light" intensity={55} style={StyleSheet.absoluteFill} />
-                            <IconExtras size={28} color="#14213D" />
-                            <Text style={[styles.iconText, { marginTop: 4 }]}>EXTRAS</Text>
-                        </TouchableOpacity>
-                    </>
-                ) : (
-                    <Animated.View
-                        style={[
-                            styles.extrasTray,
+                <Animated.View
+                    pointerEvents={extrasTrayOpen ? 'none' : 'auto'}
+                    style={{
+                        opacity: extrasTrayAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [1, 0],
+                        }),
+                        transform: [
                             {
-                                opacity: extrasTrayAnim,
+                                scale: extrasTrayAnim.interpolate({
+                                    inputRange: [0, 1],
+                                    outputRange: [1, 0.72],
+                                }),
+                            },
+                        ],
+                    }}
+                >
+                    {[IconFabric, IconStyle, IconEmbroidery].map((IconComponent, index) => {
+                        const isActive = activePanel === IconComponent.displayName;
+                        return (
+                            <TouchableOpacity key={index} style={[styles.iconButton, isActive && styles.iconButtonActive]} onPress={() => togglePanel(IconComponent.displayName)}>
+                                <BlurView tint="light" intensity={55} style={StyleSheet.absoluteFill} />
+                                <IconComponent size={28} color={isActive ? '#fff' : '#14213D'} />
+                                <Text style={[styles.iconText, isActive && { color: '#fff' }, { marginTop: 4 }]}>
+                                    {IconComponent.displayName === 'Embroidery' ? 'EMB' : IconComponent.displayName.toUpperCase()}
+                                </Text>
+                            </TouchableOpacity>
+                        );
+                    })}
+                </Animated.View>
+
+                <Animated.View
+                    pointerEvents={extrasTrayOpen ? 'auto' : 'none'}
+                    style={[
+                        styles.extrasTrayFloating,
+                        {
+                            opacity: extrasTrayAnim,
+                        },
+                    ]}
+                >
+                    {EXTRAS_TRAY_SOURCES.map(({ id, source }) => (
+                        <Animated.View
+                            key={id}
+                            style={{
+                                opacity: extrasTrayAnim.interpolate({
+                                    inputRange: [0, 0.4, 1],
+                                    outputRange: [0, 0.2, 1],
+                                }),
                                 transform: [
                                     {
-                                        translateX: extrasTrayAnim.interpolate({
+                                        translateY: extrasTrayAnim.interpolate({
                                             inputRange: [0, 1],
-                                            outputRange: [28, 0],
+                                            outputRange: [16 * (id + 1), 0],
                                         }),
                                     },
                                 ],
-                            },
-                        ]}
-                    >
-                        {EXTRAS_TRAY_SOURCES.map(({ id, source }) => (
-                            <TouchableOpacity key={id} style={styles.extrasTraySlot} activeOpacity={0.85} onPress={() => {}}>
+                            }}
+                        >
+                            <TouchableOpacity style={styles.extrasTraySlot} activeOpacity={0.85} onPress={() => {}}>
                                 <BlurView tint="light" intensity={55} style={StyleSheet.absoluteFill} />
                                 <Image source={source} style={styles.extrasTraySlotImage} resizeMode="contain" />
                             </TouchableOpacity>
-                        ))}
-                        <TouchableOpacity style={[styles.iconButton, styles.extrasTrayAnchor]} onPress={toggleExtrasTray}>
-                            <BlurView tint="light" intensity={55} style={StyleSheet.absoluteFill} />
-                            <IconExtras size={28} color="#14213D" />
-                            <Text style={[styles.iconText, { marginTop: 4 }]}>EXTRAS</Text>
-                        </TouchableOpacity>
-                    </Animated.View>
-                )}
+                        </Animated.View>
+                    ))}
+                </Animated.View>
+
+                <TouchableOpacity
+                    style={styles.iconButton}
+                    onPress={toggleExtrasTray}
+                >
+                    <BlurView tint="light" intensity={55} style={StyleSheet.absoluteFill} />
+                    <IconExtras size={28} color="#14213D" />
+                    <Text style={[styles.iconText, { marginTop: 4 }]}>EXTRAS</Text>
+                </TouchableOpacity>
             </View>
 
-            {(isPanelOpen || extrasTrayOpen) && (
+            {isPanelOpen && (
                 <TouchableOpacity
                     style={styles.overlay}
                     activeOpacity={1}
                     onPress={() => {
-                        if (extrasTrayOpen) {
-                            Animated.timing(extrasTrayAnim, { toValue: 0, duration: 220, easing: Easing.in(Easing.ease), useNativeDriver: true }).start(() => {
-                                setExtrasTrayOpen(false);
-                            });
-                        }
                         if (isPanelOpen) closePanel();
                     }}
                 >
@@ -685,6 +738,65 @@ export default function KurtaMain() {
                 </View>
             )}
 
+            {isCoatButtonModalOpen && (
+                <View style={styles.buttonModalOverlay}>
+                    <BlurView tint="dark" intensity={20} style={StyleSheet.absoluteFill} />
+                    <View style={styles.buttonModalContainer}>
+                        <BlurView tint="light" intensity={90} style={StyleSheet.absoluteFill} />
+                        <View style={styles.buttonModalHeader}>
+                            <Text style={styles.buttonModalTitle}>Select Coat Button</Text>
+                            <TouchableOpacity onPress={() => setCoatButtonModalOpen(false)}>
+                                <Text style={styles.closeBtn}>✕</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <View style={styles.buttonModalTabs}>
+                            {['Plastic', 'Metal', 'Wood', 'Ring', 'Fabric'].map(tab => (
+                                <TouchableOpacity
+                                    key={tab}
+                                    style={[styles.buttonTab, coatButtonModalTab === tab && styles.buttonTabActive]}
+                                    onPress={() => setCoatButtonModalTab(tab)}
+                                >
+                                    <Text style={[styles.buttonTabText, coatButtonModalTab === tab && { color: '#fff' }]}>{tab}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                        <ScrollView {...PANEL_SCROLL_PROPS} style={styles.buttonList}>
+                            {DUMMY_COAT_BUTTONS
+                                .filter(b => b.material === coatButtonModalTab)
+                                .sort((a, b) => {
+                                    if (a.material === 'Fabric' && b.material === 'Fabric') {
+                                        if (a.linkedFabricID === selectedFabric.fabricID) return -1;
+                                        if (b.linkedFabricID === selectedFabric.fabricID) return 1;
+                                    }
+                                    return 0;
+                                })
+                                .map(btn => {
+                                    const isRecommended = btn.material === 'Fabric' && btn.linkedFabricID === selectedFabric.fabricID;
+                                    const isSelected = selectedCoatButton?.id === btn.id;
+                                    return (
+                                        <TouchableOpacity
+                                            key={btn.id}
+                                            style={[styles.buttonItem, isSelected && styles.buttonItemActive]}
+                                            onPress={() => { setSelectedCoatButton(btn); setCoatButtonModalOpen(false); }}
+                                        >
+                                            {btn.icon ? (
+                                                <Image source={btn.icon} style={styles.buttonItemIcon} />
+                                            ) : (
+                                                <View style={styles.buttonItemIcon} />
+                                            )}
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={styles.buttonItemName}>{btn.name}</Text>
+                                                {isRecommended && <Text style={styles.recommendedBadge}>RECOMMENDED</Text>}
+                                            </View>
+                                        </TouchableOpacity>
+                                    );
+                                })
+                            }
+                        </ScrollView>
+                    </View>
+                </View>
+            )}
+
             <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 14) }]}>
                 <BlurView tint="light" intensity={55} style={StyleSheet.absoluteFill} />
                 <View style={styles.bottomBarTint} />
@@ -726,6 +838,12 @@ const styles = StyleSheet.create({
     iconButtonActive: { backgroundColor: '#14213D', shadowColor: '#14213D', shadowOpacity: 0.4, shadowRadius: 10, elevation: 10 },
     iconText: { fontSize: 11, color: '#14213D', fontWeight: 'bold', textAlign: 'center', zIndex: 2 },
     extrasTray: { alignItems: 'center' },
+    extrasTrayFloating: {
+        position: 'absolute',
+        bottom: 76,
+        alignItems: 'center',
+        zIndex: 2,
+    },
     extrasTraySlot: {
         width: 56,
         height: 56,

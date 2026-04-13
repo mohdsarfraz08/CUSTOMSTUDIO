@@ -63,7 +63,7 @@ export default function KurtaSidebar({ activePanel, selections, onStyleChange, s
                                                 onPress={() => onStyleChange(section.key, opt.value)}
                                             >
                                                 {IconComponent && (
-                                                    <IconComponent size={65} />
+                                                    <IconComponent size={80} />
                                                 )}
                                             </TouchableOpacity>
                                             <Text style={[styles.optionLabel, { color: isActive ? '#000' : '#555' }]}>{opt.label}</Text>

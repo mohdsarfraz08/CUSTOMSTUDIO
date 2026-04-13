@@ -127,6 +127,54 @@ export const DUMMY_SADRI_BUTTONS = [
     }
 ];
 
+export const DUMMY_COAT_BUTTONS = [
+    {
+        id: "CBTN_0001",
+        name: "Standard Plastic",
+        material: "Plastic",
+        icon: null,
+        renders: {}
+    },
+    {
+        id: "CBTN_0002",
+        name: "Classic Metal",
+        material: "Metal",
+        icon: null,
+        renders: {}
+    },
+    {
+        id: "CBTN_0003",
+        name: "Oak Wood",
+        material: "Wood",
+        icon: null,
+        renders: {}
+    },
+    {
+        id: "CBTN_0004",
+        name: "Standard Ring",
+        material: "Ring",
+        icon: null,
+        renders: {}
+    },
+    {
+        id: "CBTN_001",
+        name: "Coat Fabric Button",
+        material: "Fabric",
+        linkedFabricID: "FAB_001",
+        icon: require('../../assets/images/buttons/fabric_button/button_icon/button_coat_001.png'),
+        renders: {
+            "BC-1B-F": require('../../assets/images/buttons/fabric_button/render/button_001/BC-1B-F.webp'),
+            "BC-1B-S": require('../../assets/images/buttons/fabric_button/render/button_001/BC-1B-S.webp'),
+            "BC-2B-F": require('../../assets/images/buttons/fabric_button/render/button_001/BC-2B-F.webp'),
+            "BC-2B-S": require('../../assets/images/buttons/fabric_button/render/button_001/BC-2B-S.webp'),
+            "BC-JH-F": require('../../assets/images/buttons/fabric_button/render/button_001/BC-JH-F.webp'),
+            "BC-JH-S": require('../../assets/images/buttons/fabric_button/render/button_001/BC-JH-S.webp'),
+            "BCS-B": require('../../assets/images/buttons/fabric_button/render/button_001/BCS-B.webp'),
+            "BCS-S": require('../../assets/images/buttons/fabric_button/render/button_001/BCS-S.webp')
+        }
+    }
+];
+
 export const EMBROIDERY_COLLECTIONS = [
     {
         id: "DDF01",

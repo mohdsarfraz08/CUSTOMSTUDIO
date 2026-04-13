@@ -126,7 +126,31 @@ const getStyleBackCoatCodes = (selections = {}) => {
     return [ventCode];
 };
 
-export default function KurtaModel({ selections, selectedFabric, selectedButton, selectedSadriButton, selectedPajamaFabric, selectedSadriFabric, hasCoat = false, hasSadri, sadriCode, slideIndex = 0 }) {
+const getCoatButtonCodes = (selections = {}, slideIndex = 0) => {
+    const coatType = selections.coatType || '1B';
+    if (coatType === 'JH') return [];
+
+    if (slideIndex === 0) {
+        if (coatType === '1B' || coatType === '2B') return [`BC-${coatType}-F`];
+        if (JODHPURI_TYPES.includes(coatType)) return ['BC-JH-F'];
+    }
+
+    if (slideIndex === 4) {
+        const codes = [];
+        if (coatType === '1B' || coatType === '2B') codes.push(`BC-${coatType}-S`);
+        else if (JODHPURI_TYPES.includes(coatType)) codes.push('BC-JH-S');
+        codes.push('BCS-S');
+        return codes;
+    }
+
+    if (slideIndex === 5) {
+        return ['BCS-B'];
+    }
+
+    return [];
+};
+
+export default function KurtaModel({ selections, selectedFabric, selectedButton, selectedSadriButton, selectedCoatButton, selectedPajamaFabric, selectedSadriFabric, hasCoat = false, hasSadri, sadriCode, slideIndex = 0 }) {
 
     // SAFETY CHECK: Jab tak data ready na ho, model render mat karo
     if (!selections || !selectedFabric) return null;
@@ -139,6 +163,7 @@ export default function KurtaModel({ selections, selectedFabric, selectedButton,
 
     if (hasCoat && (slideIndex === 4 || slideIndex === 5)) {
         const coatCodes = slideIndex === 4 ? getStyleFrontCoatCodes(selections) : getStyleBackCoatCodes(selections);
+        const coatButtonCodes = getCoatButtonCodes(selections, slideIndex);
         return (
             <View style={styles.container}>
                 {coatCodes.map((code, idx) => (
@@ -146,6 +171,13 @@ export default function KurtaModel({ selections, selectedFabric, selectedButton,
                         key={`coat-style-${code}-${idx}`}
                         src={coatStyleRenders[code]}
                         zIndex={20 + idx}
+                    />
+                ))}
+                {coatButtonCodes.map((code, idx) => (
+                    <SmartLayer
+                        key={`coat-style-button-${code}-${idx}`}
+                        src={selectedCoatButton?.renders?.[code]}
+                        zIndex={40 + idx}
                     />
                 ))}
             </View>
@@ -168,8 +200,15 @@ export default function KurtaModel({ selections, selectedFabric, selectedButton,
             type: 'coat_display'
         }))
         : [];
+    const coatDisplayButtonLayers = hasCoat && slideIndex === 0
+        ? getCoatButtonCodes(selections, 0).map((code, idx) => ({
+            code,
+            zIndex: 92 + idx,
+            type: 'coat_button'
+        }))
+        : [];
 
-    const layersToRender = [...kurtaLayers, ...sadriLayers, ...coatDisplayLayers].sort((a, b) => a.zIndex - b.zIndex);
+    const layersToRender = [...kurtaLayers, ...sadriLayers, ...coatDisplayLayers, ...coatDisplayButtonLayers].sort((a, b) => a.zIndex - b.zIndex);
 
     // DATABASE: Us kapde ki saari images yahan se nikalo
     const fabricRenders = KURTA_RENDERS[selectedFabric.fabricID]?.display || {};
@@ -205,6 +244,8 @@ export default function KurtaModel({ selections, selectedFabric, selectedButton,
                     imageSource = sadriRenders[layerObj.code];
                 } else if (layerObj.type === 'coat_display') {
                     imageSource = coatDisplayRenders[layerObj.code];
+                } else if (layerObj.type === 'coat_button') {
+                    imageSource = selectedCoatButton?.renders?.[layerObj.code];
                 } else {
                     imageSource = fabricRenders[layerObj.code];
                 }

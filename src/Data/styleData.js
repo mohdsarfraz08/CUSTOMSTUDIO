@@ -4,7 +4,13 @@ import {
     IconLenLong, IconLenShort, IconCutRound, IconCutStraight, IconPlacketNotch, IconPlacketSquare,
     IconPocket0, IconPocket1, IconPocket2, IconFlap0, IconFlap1, IconTypeRound, IconTypeNotch, IconTypeSquare,
     IconEpNo, IconEpYes, IconColRound, IconColMandarin, IconColChinese, IconColShirtRound, IconColButtonDown,
-    IconColStandard, IconColSemiSpread, IconColSpread, IconSleeveNocuff, IconSleeveCuff, IconCuffRound1, IconCuffNotch1, IconCuffSquare1, IconCuffRound2, IconCuffNotch2, IconCuffSquare2
+    IconColStandard, IconColSemiSpread, IconColSpread, IconSleeveNocuff, IconSleeveCuff, IconCuffRound1, IconCuffNotch1, IconCuffSquare1, IconCuffRound2, IconCuffNotch2, IconCuffSquare2,
+    IconSadriEssentialNehru, IconSadriSignatureCurve, IconSadriCommand, IconSadriRanger, IconSadriEliteMinimal,
+    IconSadriMetroUtility, IconSadriAvantEdge, IconSadriOfficer, IconSadriRoyalWrap, IconSadriModernRoyal,
+    IconSadriRoyalAsym, IconSadriImperialSeamless,
+    IconPajamaSalwar, IconPajamaDhoti, IconPajamaPajama, IconPajamaChudidar,
+    IconPajamaPatiala, IconPajamaAligarhi, IconPajamaPant, IconPajamaBellbottom,
+    IconPajamaRope, IconPajamaElastic
 } from '../icons/KurtaIcons';
 
 export const KURTA_STYLE_OPTIONS = [
@@ -111,43 +117,40 @@ export const KURTA_STYLE_OPTIONS = [
     {
         title: "Pajama Type", key: "pajamaType",
         options: [
-            { label: "Salwar", value: "PS", icon: IconCutRound },
-            { label: "Dhoti", value: "PD", icon: IconCutStraight },
-            { label: "Pajama", value: "PJ", icon: IconLenLong },
-            { label: "Chudidar", value: "PC", icon: IconLenShort },
-            { label: "Patiala", value: "PT", icon: IconPlacketNotch },
-            { label: "Aligarhi", value: "PA", icon: IconPlacketSquare },
-            { label: "Pant", value: "PP", icon: IconTypeRound },
-            { label: "Bellbottom", value: "PB", icon: IconTypeSquare }
+            { label: "Salwar", value: "PS", icon: IconPajamaSalwar },
+            { label: "Dhoti", value: "PD", icon: IconPajamaDhoti },
+            { label: "Pajama", value: "PJ", icon: IconPajamaPajama },
+            { label: "Chudidar", value: "PC", icon: IconPajamaChudidar },
+            { label: "Patiala", value: "PT", icon: IconPajamaPatiala },
+            { label: "Aligarhi", value: "PA", icon: IconPajamaAligarhi },
+            { label: "Pant", value: "PP", icon: IconPajamaPant },
+            { label: "Bellbottom", value: "PB", icon: IconPajamaBellbottom }
         ]
     },
     {
         title: "Belt Type", key: "beltType",
         dependency: { key: "pajamaType", notValue: "PP", andNotValue: "PB" },
         options: [
-            { label: "Rope", value: "R", icon: IconEpYes },
-            { label: "Elastic", value: "E", icon: IconEpNo }
+            { label: "Rope", value: "R", icon: IconPajamaRope },
+            { label: "Elastic", value: "E", icon: IconPajamaElastic }
         ]
     },
     {
         title: "Sadri Style", key: "sadriType",
         dependency: { isContextItem: "sadri" },
         options: [
-            { label: "Style SR", value: "SR", icon: IconLenLong },
-            { label: "Style RR", value: "RR", icon: IconLenShort },
-            { label: "Style SS", value: "SS", icon: IconCutRound },
-            { label: "Style AA", value: "AA", icon: IconCutStraight },
-            { label: "Style BB", value: "BB", icon: IconPlacketNotch },
-            { label: "Style CC", value: "CC", icon: IconPlacketSquare },
-            { label: "Style DD", value: "DD", icon: IconPocket0 },
-            { label: "Style EE", value: "EE", icon: IconPocket1 },
-            { label: "Style FF", value: "FF", icon: IconPocket2 },
-            { label: "Style GG", value: "GG", icon: IconFlap0 },
-            { label: "Style HH", value: "HH", icon: IconFlap1 },
-            { label: "Style KK", value: "KK", icon: IconTypeRound },
-            { label: "Heritage V", value: "L", icon: IconTypeNotch },
-            { label: "Classic Lapel", value: "M", icon: IconTypeSquare },
-            { label: "Urban Safari", value: "N", icon: IconEpNo }
+            { label: "Essential Nehru", value: "SR", icon: IconSadriEssentialNehru },
+            { label: "Signature Curve", value: "RR", icon: IconSadriSignatureCurve },
+            { label: "Command", value: "SS", icon: IconSadriCommand },
+            { label: "Ranger", value: "AA", icon: IconSadriRanger },
+            { label: "Elite Minimal", value: "BB", icon: IconSadriEliteMinimal },
+            { label: "Metro Utility", value: "CC", icon: IconSadriMetroUtility },
+            { label: "Avant Edge", value: "DD", icon: IconSadriAvantEdge },
+            { label: "Officer", value: "EE", icon: IconSadriOfficer },
+            { label: "Royal Wrap", value: "FF", icon: IconSadriRoyalWrap },
+            { label: "Modern Royal", value: "GG", icon: IconSadriModernRoyal },
+            { label: "Royal Asym", value: "HH", icon: IconSadriRoyalAsym },
+            { label: "Imperial Seamless", value: "KK", icon: IconSadriImperialSeamless }
         ]
     },
     {
