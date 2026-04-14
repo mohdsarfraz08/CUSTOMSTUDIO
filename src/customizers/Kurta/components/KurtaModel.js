@@ -159,8 +159,18 @@ export default function KurtaModel({ selections, selectedFabric, selectedButton,
 
     // Yahan aap apne screens ke hisab se width/height aur margins edit kar sakte hain
     const getDynamicModelStyle = () => {
+        const isSadriLastSlide = hasSadri && !hasCoat && slideIndex === 4;
+
         // # MOBILE SCREEN
         if (isMobile) {
+            if (isSadriLastSlide) {
+                return {
+                    width: '160%',
+                    height: '160%',
+                    marginTop: 250,
+                    marginBottom: 0
+                };
+            }
             return {
                 width: '105%',
                 height: '95%',
@@ -169,6 +179,14 @@ export default function KurtaModel({ selections, selectedFabric, selectedButton,
         }
         // # TABLET SCREEN
         if (isTablet) {
+            if (isSadriLastSlide) {
+                return {
+                    width: '122%',
+                    height: '114%',
+                    marginTop: -54,
+                    marginBottom: 0
+                };
+            }
             return {
                 width: '100%',
                 height: '93%',
@@ -177,6 +195,14 @@ export default function KurtaModel({ selections, selectedFabric, selectedButton,
         }
         // # TV SCREEN (Commercial Display)
         if (isDesktop) {
+            if (isSadriLastSlide) {
+                return {
+                    width: '132%',
+                    height: '130%',
+                    marginTop: -70,
+                    marginBottom: 0
+                };
+            }
             return {
                 width: '120%', // Portrait screen ke liye thoda chauda dikhane ke liye
                 height: '120%',

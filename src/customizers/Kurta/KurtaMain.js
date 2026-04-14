@@ -16,10 +16,17 @@ import FullScreenCarousel from '../../../components/FullScreenCarousel';
 
 import { IconFabric, IconStyle, IconEmbroidery, IconExtras } from '../../icons/ExtraIcons';
 
-/** Placeholder — swap `ExtrasTrayPlaceholder` or map per slot when you add real assets */
-import ExtrasTrayPlaceholder from '../../../assets/images/extra_icons/add.png';
+import ExtrasSummary from '../../../assets/images/extra_icons/summary-01.svg';
+import ExtrasFavourite from '../../../assets/images/extra_icons/favourite-01.svg';
+import ExtrasShare from '../../../assets/images/extra_icons/share-01.svg';
+import ExtrasSkinTone from '../../../assets/images/extra_icons/skin tone-01.svg';
 
-const EXTRAS_TRAY_SOURCES = Array.from({ length: 4 }, (_, i) => ({ id: i, source: ExtrasTrayPlaceholder }));
+const EXTRAS_TRAY_ITEMS = [
+    { id: 0, Icon: ExtrasSummary, label: 'Summary' },
+    { id: 1, Icon: ExtrasFavourite, label: 'Favourite' },
+    { id: 2, Icon: ExtrasShare, label: 'Share' },
+    { id: 3, Icon: ExtrasSkinTone, label: 'Skin Tone' },
+];
 
 import { useResponsive } from '../../../hooks/useResponsive';
 import { CustomTheme } from '../../../constants/theme';
@@ -66,7 +73,24 @@ export default function KurtaMain() {
     const [fabricTab, setFabricTab] = useState('Kurta'); // 'Kurta' | 'Pajama' | 'Sadri'
     const [embroideryPanelTab, setEmbroideryPanelTab] = useState('Kurta'); // 'Kurta' | 'Sadri'
 
-    const panelWidth = isDesktop ? Math.min(width * 0.5, 550) : width * 0.6;
+    // Yahan aap apne screens ke hisab se Side Panel ki width set kar sakte hain
+    const getDynamicPanelWidth = () => {
+        // # MOBILE SCREEN
+        if (!isDesktop && width < 768) {
+            return width * 0.60;
+        }
+        // # TABLET SCREEN
+        if (!isDesktop) {
+            return width * 0.40;
+        }
+        // # TV SCREEN (Commercial Display)
+        if (isDesktop) {
+            return Math.min(width * 0.58, 620);
+        }
+        return width * 0.68;
+    };
+
+    const panelWidth = getDynamicPanelWidth();
     const carouselRef = useRef(null);
     const slideAnim = useRef(new Animated.Value(-4000)).current;
 
@@ -102,11 +126,11 @@ export default function KurtaMain() {
         if (isPanelOpen) closePanel();
         setExtrasTrayOpen(true);
         extrasTrayAnim.setValue(0);
-        Animated.timing(extrasTrayAnim, { toValue: 1, duration: 900, easing: Easing.out(Easing.circle), useNativeDriver: true }).start();
+        Animated.timing(extrasTrayAnim, { toValue: 1, duration: 200, easing: Easing.out(Easing.ease), useNativeDriver: true }).start();
     };
 
     const closePanel = () => {
-        Animated.timing(slideAnim, { toValue: -4000, duration: 250, easing: Easing.in(Easing.circle), useNativeDriver: true }).start(() => {
+        Animated.timing(slideAnim, { toValue: -4000, duration: 250, easing: Easing.in(Easing.ease), useNativeDriver: true }).start(() => {
             setIsPanelOpen(false); setActivePanel(null);
         });
     };
@@ -199,8 +223,9 @@ export default function KurtaMain() {
                             {/* BUTTON PICKER SECTION MAP TO EXACT SCREENSHOT */}
                             <View style={{ marginBottom: 15 }}>
                                 <View style={styles.buttonBanner}>
-                                    <Text style={styles.buttonBannerText}>Button</Text>
+                                    <Text style={styles.buttonBannerText}>Kurta</Text>
                                 </View>
+                                <Text style={[styles.sectionTitle, { marginBottom: 10 }]}>Button</Text>
                                 <View style={styles.optionRow}>
                                     <View style={{ width: '48%', marginBottom: 10 }}>
                                         <View style={styles.buttonIconWrapper}>
@@ -252,11 +277,17 @@ export default function KurtaMain() {
                                                 : null
                                         ]}
                                     >
+                                        {section.key === 'pajamaType' && (
+                                            <View style={styles.buttonBanner}>
+                                                <Text style={styles.buttonBannerText}>Pajama</Text>
+                                            </View>
+                                        )}
                                         {section.key === 'sadriType' && selectedItems.includes('sadri') && (
                                             <View style={{ marginBottom: 15 }}>
                                                 <View style={styles.buttonBanner}>
-                                                    <Text style={styles.buttonBannerText}>Sadri Button</Text>
+                                                    <Text style={styles.buttonBannerText}>Sadri</Text>
                                                 </View>
+                                                <Text style={[styles.sectionTitle, { marginBottom: 10 }]}>Sadri Button</Text>
                                                 <View style={styles.optionRow}>
                                                     <View style={{ width: '48%', marginBottom: 10 }}>
                                                         <View style={styles.buttonIconWrapper}>
@@ -286,11 +317,12 @@ export default function KurtaMain() {
                                                 </View>
                                             </View>
                                         )}
-                                        {section.key === 'coatType' && section.title === 'Single Brested' && selectedItems.includes('coat') && (
+                                        {section.key === 'coatType' && idx === firstCoatTypeIndex && selectedItems.includes('coat') && (
                                             <View style={{ marginBottom: 15 }}>
                                                 <View style={styles.buttonBanner}>
-                                                    <Text style={styles.buttonBannerText}>Coat Button</Text>
+                                                    <Text style={styles.buttonBannerText}>Coat</Text>
                                                 </View>
+                                                <Text style={[styles.sectionTitle, { marginBottom: 10 }]}>Coat Button</Text>
                                                 <View style={styles.optionRow}>
                                                     <View style={{ width: '48%', marginBottom: 10 }}>
                                                         <View style={styles.buttonIconWrapper}>
@@ -452,9 +484,11 @@ export default function KurtaMain() {
     const totalPrice = basePrice + pajamaFabricPrice + sadriFabricPrice + embroideryPrice;
 
     const sadriCode = selections.sadriType || 'SR';
+    const firstCoatTypeIndex = KURTA_STYLE_OPTIONS.findIndex((section) => section.key === 'coatType');
+    const panelBottomOffset = 70;
 
     const buildSlides = () => {
-        const baseProps = { selections, selectedFabric, selectedButton, selectedSadriButton, selectedPajamaFabric, selectedSadriFabric, hasSadri, sadriCode };
+        const baseProps = { selections, selectedFabric, selectedButton, selectedSadriButton, selectedCoatButton, selectedPajamaFabric, selectedSadriFabric, hasSadri, sadriCode };
 
         if (hasOuterwear) {
             return [
@@ -566,7 +600,7 @@ export default function KurtaMain() {
                         },
                     ]}
                 >
-                    {EXTRAS_TRAY_SOURCES.map(({ id, source }) => (
+                    {EXTRAS_TRAY_ITEMS.map(({ id, Icon, label }) => (
                         <Animated.View
                             key={id}
                             style={{
@@ -586,7 +620,8 @@ export default function KurtaMain() {
                         >
                             <TouchableOpacity style={styles.extrasTraySlot} activeOpacity={0.85} onPress={() => {}}>
                                 <BlurView tint="light" intensity={55} style={StyleSheet.absoluteFill} />
-                                <Image source={source} style={styles.extrasTraySlotImage} resizeMode="contain" />
+                                <Icon width={40} height={40} />
+                                <Text style={styles.extrasTraySlotLabel}>{label}</Text>
                             </TouchableOpacity>
                         </Animated.View>
                     ))}
@@ -596,9 +631,9 @@ export default function KurtaMain() {
                     style={styles.iconButton}
                     onPress={toggleExtrasTray}
                 >
-                    <BlurView tint="light" intensity={55} style={StyleSheet.absoluteFill} />
+                    <BlurView tint="light" intensity={10} style={StyleSheet.absoluteFill} />
                     <IconExtras size={28} color="#14213D" />
-                    <Text style={[styles.iconText, { marginTop: 4 }]}>EXTRAS</Text>
+                    <Text style={[styles.iconText, { marginTop: 4 }]}>{extrasTrayOpen ? 'HIDE' : 'EXTRAS'}</Text>
                 </TouchableOpacity>
             </View>
 
@@ -614,7 +649,7 @@ export default function KurtaMain() {
                 </TouchableOpacity>
             )}
 
-            <Animated.View style={[styles.sidePanel, { width: panelWidth, bottom: 104 + insets.bottom, transform: [{ translateX: slideAnim }] }]}>
+            <Animated.View style={[styles.sidePanel, { width: panelWidth, bottom: panelBottomOffset + insets.bottom, transform: [{ translateX: slideAnim }] }]}>
                 <BlurView tint="light" intensity={80} style={StyleSheet.absoluteFill} />
                 <View style={styles.panelHeader}>
                     <Text style={styles.panelTitle}>Select {activePanel}</Text>
@@ -838,7 +873,7 @@ const styles = StyleSheet.create({
     brandText: { fontSize: 24, fontWeight: 'bold', letterSpacing: 2, color: CustomTheme.textBrand },
     rightMenu: { position: 'absolute', right: 20, top: '25%', zIndex: 100, alignItems: 'center' },
     iconButton: { width: 60, height: 60, backgroundColor: CustomTheme.glassBgLight, borderWidth: 1, borderColor: CustomTheme.glassBorderHeavy, borderRadius: 15, justifyContent: 'center', alignItems: 'center', marginBottom: 20, shadowColor: CustomTheme.shadowDark, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 8, overflow: 'hidden' },
-    iconButtonActive: { backgroundColor: 'rgba(252, 157, 3, 0.2)', borderColor: CustomTheme.accentGold, shadowColor: CustomTheme.accentGold, shadowOpacity: 0.4, shadowRadius: 10, elevation: 10 },
+    iconButtonActive: { backgroundColor: 'rgba(252, 157, 3, 0.3)', borderColor: CustomTheme.accentGold, shadowColor: CustomTheme.accentGold, shadowOpacity: 0.4, shadowRadius: 10, elevation: 10 },
     iconText: { fontSize: 11, color: CustomTheme.textBrand, fontWeight: 'bold', textAlign: 'center', zIndex: 2 },
     extrasTray: { alignItems: 'center' },
     extrasTrayFloating: {
@@ -848,8 +883,8 @@ const styles = StyleSheet.create({
         zIndex: 2,
     },
     extrasTraySlot: {
-        width: 56,
-        height: 56,
+        width: 64,
+        height: 64,
         marginBottom: 10,
         borderRadius: 14,
         overflow: 'hidden',
@@ -864,10 +899,16 @@ const styles = StyleSheet.create({
         shadowRadius: 6,
         elevation: 6,
     },
-    extrasTraySlotImage: { width: 30, height: 30 },
+    extrasTraySlotLabel: {
+        marginTop: 2,
+        fontSize: 10,
+        fontWeight: '700',
+        color: CustomTheme.textBrand,
+        textAlign: 'center',
+    },
     extrasTrayAnchor: { marginTop: 2 },
     overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: CustomTheme.overlayLight, zIndex: 20 },
-    sidePanel: { position: 'absolute', left: 0, top: 0, bottom: 104, backgroundColor: CustomTheme.glassBgLight, borderWidth: 1, borderColor: CustomTheme.glassBorderHeavy, zIndex: 5000, elevation: 5000, paddingTop: 60, shadowColor: CustomTheme.shadowDark, shadowOffset: { width: 5, height: 0 }, shadowOpacity: 0.1, shadowRadius: 15, borderTopRightRadius: 0, borderBottomRightRadius: 0, overflow: 'hidden' },
+    sidePanel: { position: 'absolute', left: 0, top: 0, bottom: 84, backgroundColor: CustomTheme.glassBgLight, borderWidth: 1, borderColor: CustomTheme.glassBorderHeavy, zIndex: 5000, elevation: 5000, paddingTop: 18, shadowColor: CustomTheme.shadowDark, shadowOffset: { width: 5, height: 0 }, shadowOpacity: 0.1, shadowRadius: 15, borderTopRightRadius: 0, borderBottomRightRadius: 0, overflow: 'hidden' },
     panelHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 25, marginBottom: 10, marginTop: -10 },
     panelTitle: { fontSize: 20, fontWeight: 'bold', color: CustomTheme.textBrand },
     closeBtn: { fontSize: 24, color: CustomTheme.accentGold, padding: 10 },
@@ -894,7 +935,7 @@ const styles = StyleSheet.create({
         minHeight: 92,
         paddingTop: 14,
         paddingHorizontal: 16,
-        zIndex: 40,
+        zIndex: 10000,
         overflow: 'hidden',
         borderTopWidth: StyleSheet.hairlineWidth,
         borderTopColor: 'rgba(15, 23, 42, 0.08)',
@@ -902,11 +943,11 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: -6 },
         shadowOpacity: 0.07,
         shadowRadius: 20,
-        elevation: 16,
+        elevation: 10000,
     },
     bottomBarTint: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(255, 253, 250, 0.82)',
+        backgroundColor: 'rgba(255, 253, 250, 1)',
     },
     bottomBarContent: {
         flexDirection: 'row',

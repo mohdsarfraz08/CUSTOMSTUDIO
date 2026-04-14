@@ -1,17 +1,20 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, type ViewStyle } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useOutfit, AVAILABLE_ITEMS, OutfitItemId } from '../../src/context/OutfitContext';
 import { useResponsive } from '../../hooks/useResponsive';
-import { BlurView } from 'expo-blur';
 import { CustomTheme } from '../../constants/theme';
+import KurtaOutfitIcon from '../../assets/images/outfit_icon/kurta/kurta.svg';
+import PajamaOutfitIcon from '../../assets/images/outfit_icon/kurta/pajama.svg';
+import CoatOutfitIcon from '../../assets/images/outfit_icon/kurta/coat.svg';
+import SadriOutfitIcon from '../../assets/images/outfit_icon/kurta/sadri.svg';
 
-const ITEM_ICONS: Record<OutfitItemId, React.ComponentProps<typeof MaterialIcons>['name']> = {
-    kurta: 'checkroom',
-    pajama: 'hotel',
-    coat: 'layers',
-    sadri: 'verified',
+const ITEM_SVGS: Record<OutfitItemId, React.ComponentType<{ width?: number; height?: number }>> = {
+    kurta: KurtaOutfitIcon,
+    pajama: PajamaOutfitIcon,
+    coat: CoatOutfitIcon,
+    sadri: SadriOutfitIcon,
 };
 
 export default function OutfitScreen() {
@@ -20,11 +23,11 @@ export default function OutfitScreen() {
     const isLargeScreen = isTablet || isDesktop;
 
     // Yahan aap apne screens ke hisab se Card ka width aur layout set kar sakte hain
-    const getDynamicCardStyle = () => {
+    const getDynamicCardStyle = (): ViewStyle => {
         // # MOBILE SCREEN
         if (isMobile) {
             return {
-                width: '48%',
+                width: '48%' as const,
                 minHeight: 180,
                 padding: 18
             };
@@ -32,7 +35,7 @@ export default function OutfitScreen() {
         // # TABLET SCREEN
         if (isTablet) {
             return {
-                width: '48%',
+                width: '48%' as const,
                 minHeight: normalize(200),
                 padding: normalize(20)
             };
@@ -40,7 +43,7 @@ export default function OutfitScreen() {
         // # TV SCREEN (Commercial Display)
         if (isDesktop) {
             return {
-                width: '48%', // Aap chahein to ise '23%' kar sakte hain agar ek row mein 4 items chahiye
+                width: '48%' as const, // Aap chahein to ise '23%' kar sakte hain agar ek row mein 4 items chahiye
                 minHeight: normalize(240),
                 padding: normalize(24)
             };
@@ -65,7 +68,7 @@ export default function OutfitScreen() {
                 {(Object.keys(AVAILABLE_ITEMS) as OutfitItemId[]).map((id) => {
                     const item = AVAILABLE_ITEMS[id];
                     const isSelected = selectedItems.includes(id);
-                    const iconName = ITEM_ICONS[id];
+                    const OutfitIcon = ITEM_SVGS[id];
 
                     return (
                         <TouchableOpacity
@@ -78,7 +81,6 @@ export default function OutfitScreen() {
                             onPress={() => toggleItem(id)}
                             activeOpacity={0.85}
                         >
-                            <BlurView tint="light" intensity={60} style={StyleSheet.absoluteFill} />
                             <View style={styles.itemTopRow}>
                                 <Text style={[styles.itemName, isSelected && styles.itemTextSelected, { fontSize: normalize(16) }]}>{item.name}</Text>
                                 <View style={[
@@ -95,13 +97,7 @@ export default function OutfitScreen() {
                             </View>
 
                             <View style={styles.previewArea}>
-                                <View style={[
-                                    styles.iconWrapper,
-                                    isSelected && styles.iconWrapperSelected,
-                                    { width: normalize(78), height: normalize(78), borderRadius: normalize(22) }
-                                ]}>
-                                    <MaterialIcons name={iconName} size={normalize(40)} color={isSelected ? CustomTheme.accentGold : CustomTheme.textSecondary} />
-                                </View>
+                                <OutfitIcon width={normalize(150)} height={normalize(150)} />
                             </View>
 
                         </TouchableOpacity>
@@ -138,25 +134,25 @@ const styles = StyleSheet.create({
     itemCard: {
         width: '48%',
         minHeight: 180,
-        backgroundColor: CustomTheme.glassBgLight,
+        backgroundColor: '#FFFFFF',
         borderRadius: 20,
         marginBottom: 16,
         padding: 18,
         position: 'relative',
         borderWidth: 1,
-        borderColor: CustomTheme.glassBorderHeavy,
+        borderColor: '#E5E7EB',
         overflow: 'hidden',
-        shadowColor: CustomTheme.shadowDark,
+        shadowColor: '#000000',
         shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.05,
-        shadowRadius: 14,
-        elevation: 5,
+        shadowOpacity: 0.06,
+        shadowRadius: 10,
+        elevation: 3,
     },
     itemCardSelected: {
         borderColor: CustomTheme.accentGold,
-        backgroundColor: 'rgba(252, 157, 3, 0.1)',
+        backgroundColor: '#FFF7DB',
         shadowColor: CustomTheme.accentGold,
-        shadowOpacity: 0.2,
+        shadowOpacity: 0.18,
     },
     itemTopRow: {
         flexDirection: 'row',
@@ -178,7 +174,7 @@ const styles = StyleSheet.create({
         backgroundColor: CustomTheme.accentGold,
     },
     badgeUnselected: {
-        backgroundColor: CustomTheme.glassBgMedium,
+        backgroundColor: '#F1F1F3',
     },
 
     previewArea: {
@@ -187,21 +183,6 @@ const styles = StyleSheet.create({
         marginTop: 20,
         flex: 1,
     },
-    iconWrapper: {
-        width: 78,
-        height: 78,
-        borderRadius: 22,
-        backgroundColor: CustomTheme.glassBgLight,
-        borderWidth: 1,
-        borderColor: CustomTheme.glassBorderHeavy,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    iconWrapperSelected: {
-        borderColor: CustomTheme.accentGold,
-        backgroundColor: 'rgba(252, 157, 3, 0.15)',
-    },
-
     footer: {
         paddingHorizontal: 20,
         paddingVertical: 18,

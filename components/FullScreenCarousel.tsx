@@ -112,8 +112,7 @@ const styles = StyleSheet.create({
     },
     arrowButton: {
         position: 'absolute',
-        top: '50%',
-        marginTop: -20, // Center vertically
+        bottom: 160, // Keep arrows near lower area
         width: 40,
         height: 40,
         borderRadius: 20,
