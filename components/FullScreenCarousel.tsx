@@ -54,13 +54,25 @@ const FullScreenCarousel = forwardRef<CarouselRef, CarouselProps>(({ data }, ref
                 data={data}
                 horizontal
                 pagingEnabled
+                initialNumToRender={1}
+                maxToRenderPerBatch={1}
+                windowSize={2}
+                removeClippedSubviews
                 showsHorizontalScrollIndicator={false}
                 keyExtractor={(_, index) => index.toString()}
-                renderItem={({ item }) => (
-                    <View style={[styles.slide, { width }]}>
-                        {item}
-                    </View>
-                )}
+                getItemLayout={(_, index) => ({
+                    length: width,
+                    offset: width * index,
+                    index,
+                })}
+                renderItem={({ item, index }) => {
+                    const shouldRender = Math.abs(index - currentIndex) <= 1;
+                    return (
+                        <View style={[styles.slide, { width }]}>
+                            {shouldRender ? item : null}
+                        </View>
+                    );
+                }}
                 onViewableItemsChanged={onViewableItemsChanged}
                 viewabilityConfig={viewabilityConfig}
                 bounces={false}
@@ -101,14 +113,15 @@ export default FullScreenCarousel;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: CustomTheme.backgroundSecondary, // Matching KurtaMain
+        backgroundColor: 'transparent',
         position: 'relative'
     },
     slide: {
         flex: 1,
         position: 'relative',
         justifyContent: 'center',
-        alignItems: 'center'
+        alignItems: 'center',
+        backgroundColor: 'transparent',
     },
     arrowButton: {
         position: 'absolute',

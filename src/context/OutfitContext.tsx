@@ -19,6 +19,7 @@ export const AVAILABLE_ITEMS: Record<OutfitItemId, OutfitItem> = {
 interface OutfitContextType {
   selectedItems: OutfitItemId[];
   toggleItem: (id: OutfitItemId) => void;
+  setSelectedItems: (items: OutfitItemId[]) => void;
 }
 
 const OutfitContext = createContext<OutfitContextType | undefined>(undefined);
@@ -51,8 +52,17 @@ export function OutfitProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const setSelectedItemsSafe = (items: OutfitItemId[]) => {
+    const base: OutfitItemId[] = ['kurta', 'pajama'];
+    const incoming = Array.isArray(items) ? items : [];
+    const hasCoat = incoming.includes('coat');
+    const hasSadri = incoming.includes('sadri');
+    const optional: OutfitItemId[] = hasCoat ? ['coat'] : (hasSadri ? ['sadri'] : []);
+    setSelectedItems([...base, ...optional]);
+  };
+
   return (
-    <OutfitContext.Provider value={{ selectedItems, toggleItem }}>
+    <OutfitContext.Provider value={{ selectedItems, toggleItem, setSelectedItems: setSelectedItemsSafe }}>
       {children}
     </OutfitContext.Provider>
   );

@@ -3,6 +3,7 @@ import { View, Image, StyleSheet } from 'react-native';
 import { useFirebaseCatalog } from '../../../context/FirebaseCatalogContext';
 import { pickFabricRenderEntry } from '../../../firebase/catalogApi';
 import { useResponsive } from '../../../../hooks/useResponsive';
+import pajama_body from '../../../../assets/images/pajama_body/pajama_body.webp';
 
 export default function PajamaStylePreview({ selections, selectedPajamaFabric }) {
     const { pajamaRenders: PAJAMA_RENDERS } = useFirebaseCatalog();
@@ -55,35 +56,57 @@ export default function PajamaStylePreview({ selections, selectedPajamaFabric })
     const imageSource = selectedPajamaFabric
         ? pajamaStyleRenders[pajamaStyleCode] || defaultPajamaRenderMap[pajamaStyleCode] || null
         : null;
+    const sourceKey = typeof imageSource === 'number'
+        ? `r:${imageSource}`
+        : (imageSource?.uri ? `u:${imageSource.uri}` : '');
     const [displaySource, setDisplaySource] = useState(imageSource || null);
     const [pendingSource, setPendingSource] = useState(null);
     const [pendingToken, setPendingToken] = useState(0);
     const tokenRef = useRef(0);
+    const pendingSourceRef = useRef(null);
 
     useEffect(() => {
-        if (!imageSource) return;
+        if (!imageSource || !sourceKey) return;
+        const displayKey = typeof displaySource === 'number'
+            ? `r:${displaySource}`
+            : (displaySource?.uri ? `u:${displaySource.uri}` : '');
+        const pendingKey = typeof pendingSource === 'number'
+            ? `r:${pendingSource}`
+            : (pendingSource?.uri ? `u:${pendingSource.uri}` : '');
+
+        // Warm up network image so switch feels instant.
+        if (imageSource?.uri) {
+            Image.prefetch(imageSource.uri).catch(() => { });
+        }
 
         if (!displaySource) {
             setDisplaySource(imageSource);
             return;
         }
 
-        if (imageSource !== displaySource && imageSource !== pendingSource) {
+        if (sourceKey !== displayKey && sourceKey !== pendingKey) {
             tokenRef.current += 1;
             setPendingSource(imageSource);
+            pendingSourceRef.current = imageSource;
             setPendingToken(tokenRef.current);
         }
-    }, [imageSource, displaySource, pendingSource]);
+    }, [imageSource, sourceKey, displaySource, pendingSource]);
 
     if (!selectedPajamaFabric) return null;
 
     return (
         <View style={styles.container}>
+            <Image
+                source={pajama_body}
+                style={[styles.image, styles.bodyImage, dynamicStyle]}
+                resizeMode="contain"
+            />
             {displaySource ? (
                 <Image
                     source={displaySource}
                     style={[styles.image, dynamicStyle]}
                     resizeMode="contain"
+                    fadeDuration={0}
                 />
             ) : (
                 <View style={[styles.image, dynamicStyle, { backgroundColor: 'transparent' }]} />
@@ -94,16 +117,19 @@ export default function PajamaStylePreview({ selections, selectedPajamaFabric })
                     source={pendingSource}
                     style={[styles.image, dynamicStyle, styles.imageOverlay]}
                     resizeMode="contain"
+                    fadeDuration={0}
                     onLoad={() => {
                         if (pendingToken === tokenRef.current) {
-                            setDisplaySource(pendingSource);
+                            setDisplaySource(pendingSourceRef.current || pendingSource);
                             setPendingSource(null);
+                            pendingSourceRef.current = null;
                         }
                     }}
                     onError={() => {
                         if (pendingToken === tokenRef.current) {
-                            setDisplaySource(pendingSource);
+                            // Keep previous render visible on errors; never blank out current.
                             setPendingSource(null);
+                            pendingSourceRef.current = null;
                         }
                     }}
                 />
@@ -119,14 +145,21 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         width: '100%',
         height: '100%',
+        transform: [{ translateY: -18 }],
     },
     // Default image style. dynamicStyle ise overwrite karega.
     image: {
         width: 300,
         height: 300,
+        zIndex: 2,
+    },
+    bodyImage: {
+        position: 'absolute',
+        zIndex: 1,
     },
     imageOverlay: {
         position: 'absolute',
         opacity: 0,
+        zIndex: 3,
     },
 });

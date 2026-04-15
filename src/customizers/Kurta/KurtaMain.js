@@ -1,11 +1,18 @@
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Dimensions, Animated, Easing, ScrollView, Image, Platform, Linking, Modal } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Dimensions, Animated, Easing, ScrollView, Image, Platform, Linking, Modal, Share } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Reanimated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { SvgCssUri } from 'react-native-svg/css';
+import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
+import * as ExpoLinking from 'expo-linking';
+import * as Sharing from 'expo-sharing';
+import { addDoc, collection, doc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { getFirestoreDb } from '../../firebase/config';
+import { captureRef } from 'react-native-view-shot';
+import QRCode from 'react-native-qrcode-svg';
 
 import { INITIAL_SELECTION, DUMMY_SADRI_BUTTONS, DUMMY_COAT_BUTTONS, EMBROIDERY_COLLECTIONS } from '../../Data/dummyData';
 import { useFirebaseCatalog } from '../../context/FirebaseCatalogContext';
@@ -24,6 +31,7 @@ import ExtrasSummary from '../../../assets/images/extra_icons/summary-01.svg';
 import ExtrasFavourite from '../../../assets/images/extra_icons/favourite-01.svg';
 import ExtrasShare from '../../../assets/images/extra_icons/share-01.svg';
 import ExtrasSkinTone from '../../../assets/images/extra_icons/skin tone-01.svg';
+import appLogo from '../../../assets/images/icon.png';
 
 const EXTRAS_TRAY_ITEMS = [
     { id: 0, Icon: ExtrasSummary, label: 'Summary' },
@@ -31,6 +39,176 @@ const EXTRAS_TRAY_ITEMS = [
     { id: 2, Icon: ExtrasShare, label: 'Share' },
     { id: 3, Icon: ExtrasSkinTone, label: 'Skin Tone' },
 ];
+
+const PUBLIC_SHARE_BASE_URL = 'https://maviinci.in/s';
+
+function buildPublicShareUrlFromSid(sid) {
+    const cleanSid = normalizeId(sid);
+    if (!cleanSid) return '';
+    return `${PUBLIC_SHARE_BASE_URL}/${encodeURIComponent(cleanSid)}`;
+}
+
+const BG_THEMES = [
+    { start: '#e5e5e5', end: '#bdbab3' },
+    { start: '#bdbab3', end: '#ada0a0' },
+    { start: '#ada0a0', end: '#bdbab3' },
+    { start: '#b8d1cf', end: '#e5e5e5' },
+];
+
+function hexToRgb(hex) {
+    const cleaned = String(hex || '').replace('#', '').trim();
+    if (!/^[0-9a-fA-F]{3,8}$/.test(cleaned)) return null;
+    const short = cleaned.length === 3 ? cleaned.split('').map((c) => c + c).join('') : cleaned.slice(0, 6);
+    const value = parseInt(short, 16);
+    return {
+        r: (value >> 16) & 255,
+        g: (value >> 8) & 255,
+        b: value & 255,
+    };
+}
+
+function hueFromRgb(rgb) {
+    if (!rgb) return null;
+    const r = rgb.r / 255;
+    const g = rgb.g / 255;
+    const b = rgb.b / 255;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const d = max - min;
+    if (d === 0) return 0;
+    let h = 0;
+    if (max === r) h = ((g - b) / d) % 6;
+    else if (max === g) h = ((b - r) / d) + 2;
+    else h = ((r - g) / d) + 4;
+    h *= 60;
+    if (h < 0) h += 360;
+    return h;
+}
+
+function hueFromHex(hex) {
+    const rgb = hexToRgb(hex);
+    return hueFromRgb(rgb);
+}
+
+function circularDistanceDeg(a, b) {
+    const d = Math.abs(a - b) % 360;
+    return d > 180 ? 360 - d : d;
+}
+
+function meanHue(hues) {
+    if (!hues.length) return null;
+    let sumSin = 0;
+    let sumCos = 0;
+    hues.forEach((h) => {
+        const rad = (h * Math.PI) / 180;
+        sumSin += Math.sin(rad);
+        sumCos += Math.cos(rad);
+    });
+    const angle = (Math.atan2(sumSin, sumCos) * 180) / Math.PI;
+    return (angle + 360) % 360;
+}
+
+function pickThemeIndexFromFabrics(fabrics) {
+    const directHexes = [];
+    const colorNames = [];
+    const pushHex = (v) => {
+        if (typeof v !== 'string') return;
+        const t = v.trim();
+        if (/^#[0-9a-fA-F]{3,8}$/.test(t)) directHexes.push(t);
+    };
+    const pushName = (v) => {
+        if (typeof v !== 'string') return;
+        const t = v.trim().toLowerCase();
+        if (t) colorNames.push(t);
+    };
+    (fabrics || []).forEach((f) => {
+        if (!f) return;
+        if (Array.isArray(f.colorCode)) f.colorCode.forEach(pushHex);
+        else pushHex(f.colorCode);
+        if (Array.isArray(f.hexCodes)) f.hexCodes.forEach(pushHex);
+        else pushHex(f.hexCodes);
+        if (Array.isArray(f.colors)) f.colors.forEach(pushName);
+        pushName(f.color);
+    });
+
+    const fabricHues = directHexes
+        .map(hueFromHex)
+        .filter((v) => typeof v === 'number');
+
+    if (!fabricHues.length) {
+        const joined = colorNames.join(' ');
+        const nameHueMap = [
+            { re: /(red|maroon|burgundy|crimson)/, hue: 0 },
+            { re: /(orange|rust|terracotta|peach)/, hue: 25 },
+            { re: /(yellow|gold|mustard)/, hue: 52 },
+            { re: /(green|olive|mint|teal)/, hue: 135 },
+            { re: /(cyan|aqua|turquoise)/, hue: 180 },
+            { re: /(blue|navy|royal)/, hue: 220 },
+            { re: /(purple|violet|lavender|mauve)/, hue: 275 },
+            { re: /(pink|rose|magenta)/, hue: 330 },
+            { re: /(white|off white|ivory|cream|beige|silver|grey|gray|black|charcoal)/, hue: 35 },
+        ];
+        nameHueMap.forEach(({ re, hue }) => {
+            if (re.test(joined)) fabricHues.push(hue);
+        });
+    }
+
+    if (!fabricHues.length) {
+        const first = (fabrics || []).find(Boolean);
+        const rawKey = first?.fabricID || first?.id || first?.name || '';
+        const key = String(rawKey);
+        if (!key) return 1;
+        let hash = 0;
+        for (let i = 0; i < key.length; i += 1) {
+            hash = ((hash << 5) - hash) + key.charCodeAt(i);
+            hash |= 0;
+        }
+        return Math.abs(hash) % BG_THEMES.length;
+    }
+    const fabricHue = meanHue(fabricHues);
+    const oppositeHue = (fabricHue + 180) % 360;
+
+    const themeHues = BG_THEMES.map((t) => {
+        const a = hexToRgb(t.start);
+        const b = hexToRgb(t.end);
+        if (!a || !b) return 0;
+        return hueFromRgb({
+            r: Math.round((a.r + b.r) / 2),
+            g: Math.round((a.g + b.g) / 2),
+            b: Math.round((a.b + b.b) / 2),
+        });
+    });
+
+    let bestIdx = 0;
+    let bestDist = Infinity;
+    themeHues.forEach((h, idx) => {
+        const d = circularDistanceDeg(oppositeHue, h);
+        if (d < bestDist) {
+            bestDist = d;
+            bestIdx = idx;
+        }
+    });
+    return bestIdx;
+}
+
+function BackgroundGradient({ start, end }) {
+    return (
+        <Svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <Defs>
+                <LinearGradient id="bgGrad" x1="100%" y1="100%" x2="0%" y2="0%">
+                    <Stop offset="0%" stopColor={start} stopOpacity="1" />
+                    <Stop offset="100%" stopColor={end} stopOpacity="1" />
+                </LinearGradient>
+            </Defs>
+            <Rect x="0" y="0" width="100" height="100" fill="url(#bgGrad)" />
+        </Svg>
+    );
+}
+
+function normalizeId(v) {
+    if (v == null) return '';
+    return String(v).trim();
+}
 
 import { useResponsive } from '../../../hooks/useResponsive';
 import { CustomTheme } from '../../../constants/theme';
@@ -82,7 +260,7 @@ function ZoomableImage({ source, imageKey }) {
     );
 }
 
-export default function KurtaMain() {
+export default function KurtaMain({ presetParam, presetIdParam }) {
     const {
         fabrics,
         fabricsByGarment,
@@ -103,11 +281,12 @@ export default function KurtaMain() {
     const { width, isDesktop, normalize } = useResponsive();
     const isTabletViewport = !isDesktop && width >= 768;
     const insets = useSafeAreaInsets();
-    const { selectedItems } = useOutfit();
+    const { selectedItems, setSelectedItems } = useOutfit();
     const [activePanel, setActivePanel] = useState(null);
     const [isPanelOpen, setIsPanelOpen] = useState(false);
     const [extrasTrayOpen, setExtrasTrayOpen] = useState(false);
     const extrasTrayAnim = useRef(new Animated.Value(0)).current;
+    const extrasTrayAnimatingRef = useRef(false);
 
     // STATE MANAGEMENT
     const [selectedFabric, setSelectedFabric] = useState(fabrics?.[0] || {});
@@ -120,6 +299,8 @@ export default function KurtaMain() {
     const [isButtonModalOpen, setButtonModalOpen] = useState(false);
     const [isSadriButtonModalOpen, setSadriButtonModalOpen] = useState(false);
     const [isCoatButtonModalOpen, setCoatButtonModalOpen] = useState(false);
+    const [isSummaryOpen, setSummaryOpen] = useState(false);
+    const [summaryTab, setSummaryTab] = useState('Kurta');
     const [buttonModalTab, setButtonModalTab] = useState('Plastic');
     const [sadriButtonModalTab, setSadriButtonModalTab] = useState('Plastic');
     const [coatButtonModalTab, setCoatButtonModalTab] = useState('Plastic');
@@ -138,6 +319,71 @@ export default function KurtaMain() {
     const [fabricViewerIndex, setFabricViewerIndex] = useState(0);
     const brandNameTranslateX = useRef(new Animated.Value(0)).current;
     const brandNameMarqueeRef = useRef(null);
+    const bgFadeAnim = useRef(new Animated.Value(0)).current;
+    const bgTransitionTimerRef = useRef(null);
+    const bgAnimatingRef = useRef(false);
+    const bgPendingThemeRef = useRef(null);
+    const [activeBgThemeIndex, setActiveBgThemeIndex] = useState(0);
+    const [incomingBgThemeIndex, setIncomingBgThemeIndex] = useState(null);
+    const [isPreparingShareShot, setIsPreparingShareShot] = useState(false);
+    const [shareLinkForShot, setShareLinkForShot] = useState('');
+    const shareCaptureRef = useRef(null);
+    const appliedPresetRef = useRef('');
+
+    const [remotePresetData, setRemotePresetData] = useState(null);
+
+    const localPresetData = useMemo(() => {
+        if (!presetParam || typeof presetParam !== 'string') return null;
+        try {
+            return JSON.parse(decodeURIComponent(presetParam));
+        } catch {
+            return null;
+        }
+    }, [presetParam]);
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            if (!presetIdParam) {
+                if (!cancelled) setRemotePresetData(null);
+                return;
+            }
+            try {
+                const db = getFirestoreDb();
+                if (!db) return;
+                const snap = await getDoc(doc(db, 'SharedPresets', presetIdParam));
+                if (!snap.exists()) return;
+                const data = snap.data()?.payload;
+                if (!cancelled && data && typeof data === 'object') {
+                    setRemotePresetData(data);
+                }
+            } catch (e) {
+                console.warn('Load shared preset failed', e);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [presetIdParam]);
+
+    const presetData = remotePresetData || localPresetData;
+
+    const fabricsByAnyId = useMemo(() => {
+        const map = new Map();
+        (fabrics || []).forEach((f) => {
+            [f.fabricID, f.id, f.doc, f.websiteId, f.stylePathId, f.firestoreDocId]
+                .map(normalizeId)
+                .filter(Boolean)
+                .forEach((k) => map.set(k, f));
+        });
+        return map;
+    }, [fabrics]);
+
+    const buttonById = useMemo(() => {
+        const map = new Map();
+        (buttons || []).forEach((b) => map.set(normalizeId(b?.id), b));
+        (DUMMY_SADRI_BUTTONS || []).forEach((b) => map.set(normalizeId(b?.id), b));
+        (DUMMY_COAT_BUTTONS || []).forEach((b) => map.set(normalizeId(b?.id), b));
+        return map;
+    }, [buttons]);
 
     useEffect(() => {
         if (!fabricsByGarment) return;
@@ -176,6 +422,47 @@ export default function KurtaMain() {
         prefetchFabricRenders,
     ]);
 
+    useEffect(() => {
+        if (!presetData || !fabrics?.length) return;
+        const presetKey = JSON.stringify(presetData);
+        if (appliedPresetRef.current === presetKey) return;
+
+        const pickFabric = (id) => {
+            const key = normalizeId(id);
+            return key ? (fabricsByAnyId.get(key) || null) : null;
+        };
+
+        const nextKurta = pickFabric(presetData?.fabrics?.kurta);
+        const nextPajama = pickFabric(presetData?.fabrics?.pajama);
+        const nextSadri = pickFabric(presetData?.fabrics?.sadri);
+        const nextCoat = pickFabric(presetData?.fabrics?.coat);
+
+        if (Array.isArray(presetData?.items) && setSelectedItems) {
+            setSelectedItems(presetData.items);
+        }
+        if (presetData?.selections && typeof presetData.selections === 'object') {
+            setSelections((prev) => ({ ...prev, ...presetData.selections }));
+        }
+        if (nextKurta) setSelectedFabric(nextKurta);
+        if (nextPajama) setSelectedPajamaFabric(nextPajama);
+        if (nextSadri) setSelectedSadriFabric(nextSadri);
+        if (nextCoat) setSelectedCoatFabric(nextCoat);
+
+        const bKurta = buttonById.get(normalizeId(presetData?.buttons?.kurta));
+        const bSadri = buttonById.get(normalizeId(presetData?.buttons?.sadri));
+        const bCoat = buttonById.get(normalizeId(presetData?.buttons?.coat));
+        if (bKurta) setSelectedButton(bKurta);
+        if (bSadri) setSelectedSadriButton(bSadri);
+        if (bCoat) setSelectedCoatButton(bCoat);
+
+        const tab = presetData?.fabricTab;
+        if (['Kurta', 'Pajama', 'Sadri', 'Coat'].includes(tab)) setFabricTab(tab);
+        const embTab = presetData?.embroideryTab;
+        if (['Kurta', 'Sadri'].includes(embTab)) setEmbroideryPanelTab(embTab);
+
+        appliedPresetRef.current = presetKey;
+    }, [presetData, fabrics, fabricsByAnyId, buttonById, setSelectedItems]);
+
     // Yahan aap apne screens ke hisab se Side Panel ki width set kar sakte hain
     const getDynamicPanelWidth = () => {
         // # MOBILE SCREEN
@@ -207,9 +494,147 @@ export default function KurtaMain() {
         return `Est. delivery by ${weekday}, ${day} ${month} ${year}`;
     }, []);
 
+    const getFabricPresetId = useCallback((fabric) => (
+        normalizeId(fabric?.websiteId) ||
+        normalizeId(fabric?.stylePathId) ||
+        normalizeId(fabric?.fabricID) ||
+        normalizeId(fabric?.firestoreDocId) ||
+        normalizeId(fabric?.id) ||
+        normalizeId(fabric?.doc) ||
+        ''
+    ), []);
+
+    const buildSharePreset = useCallback(() => ({
+        v: 1,
+        items: selectedItems,
+        selections,
+        fabrics: {
+            kurta: getFabricPresetId(selectedFabric),
+            pajama: getFabricPresetId(selectedPajamaFabric),
+            sadri: getFabricPresetId(selectedSadriFabric),
+            coat: getFabricPresetId(selectedCoatFabric),
+        },
+        buttons: {
+            kurta: normalizeId(selectedButton?.id),
+            sadri: normalizeId(selectedSadriButton?.id),
+            coat: normalizeId(selectedCoatButton?.id),
+        },
+        fabricTab,
+        embroideryTab: embroideryPanelTab,
+    }), [
+        selectedItems,
+        selections,
+        selectedFabric,
+        selectedPajamaFabric,
+        selectedSadriFabric,
+        selectedCoatFabric,
+        selectedButton,
+        selectedSadriButton,
+        selectedCoatButton,
+        fabricTab,
+        embroideryPanelTab,
+        getFabricPresetId,
+    ]);
+
+    const handleSharePreset = useCallback(async () => {
+        try {
+            const payload = buildSharePreset();
+            let url = '';
+            try {
+                const db = getFirestoreDb();
+                if (db) {
+                    const ref = await addDoc(collection(db, 'SharedPresets'), {
+                        payload,
+                        createdAt: serverTimestamp(),
+                        v: 1,
+                    });
+                    url = buildPublicShareUrlFromSid(ref.id) || ExpoLinking.createURL('/kurta', { queryParams: { sid: ref.id } });
+                }
+            } catch (e) {
+                console.warn('Short link save failed, fallback to inline preset', e);
+            }
+            if (!url) {
+                const preset = encodeURIComponent(JSON.stringify(payload));
+                url = ExpoLinking.createURL('/kurta', { queryParams: { preset } });
+            }
+            setShareLinkForShot(url);
+            setIsPreparingShareShot(true);
+            carouselRef.current?.scrollToIndex(0);
+            await new Promise((resolve) => setTimeout(resolve, 280));
+            let screenshotUri = '';
+            try {
+                if (!shareCaptureRef.current) {
+                    throw new Error('Share capture view is not mounted');
+                }
+                screenshotUri = await captureRef(shareCaptureRef.current, {
+                    format: 'jpg',
+                    quality: 0.92,
+                    result: 'tmpfile',
+                });
+            } catch (e) {
+                console.warn('Share screenshot capture failed', e);
+            }
+            const message = `Check my Maviinci design: ${url}`;
+            const fileUri = screenshotUri
+                ? (screenshotUri.startsWith('file://') ? screenshotUri : `file://${screenshotUri}`)
+                : undefined;
+            if (fileUri) {
+                try {
+                    // Prefer Share API first: better chance WhatsApp keeps caption with media.
+                    await Share.share({
+                        title: 'Maviinci design preset',
+                        message: `${message}\n${url}`,
+                        url: fileUri,
+                        ...(Platform.OS === 'android' ? { dialogTitle: 'Share design via' } : {}),
+                    });
+                    return;
+                } catch (err) {
+                    console.warn('Share API media+caption failed, fallback to file share', err);
+                }
+                const canNativeShareFile = await Sharing.isAvailableAsync();
+                if (canNativeShareFile) {
+                    await Sharing.shareAsync(fileUri, {
+                        mimeType: 'image/jpeg',
+                        UTI: 'public.jpeg',
+                        dialogTitle: 'Share design via',
+                    });
+                    return;
+                }
+            }
+            await Share.share({
+                title: 'Maviinci design preset',
+                message: `${message}\n${url}`,
+                ...(fileUri ? { url: fileUri } : {}),
+                ...(Platform.OS === 'android' ? { dialogTitle: 'Share design via' } : {}),
+            });
+        } catch (e) {
+            console.warn('Share preset failed', e);
+        } finally {
+            setIsPreparingShareShot(false);
+            setShareLinkForShot('');
+        }
+    }, [buildSharePreset]);
+
+    const animateExtrasTray = useCallback((toOpen) => {
+        if (extrasTrayAnimatingRef.current) return;
+        extrasTrayAnimatingRef.current = true;
+        if (toOpen) setExtrasTrayOpen(true);
+        extrasTrayAnim.stopAnimation(() => {
+            Animated.spring(extrasTrayAnim, {
+                toValue: toOpen ? 1 : 0,
+                damping: 20,
+                stiffness: 220,
+                mass: 0.9,
+                useNativeDriver: true,
+            }).start(() => {
+                extrasTrayAnimatingRef.current = false;
+                if (!toOpen) setExtrasTrayOpen(false);
+            });
+        });
+    }, [extrasTrayAnim]);
+
     const togglePanel = (panelName) => {
-        setExtrasTrayOpen(false);
-        extrasTrayAnim.setValue(0);
+        if (extrasTrayOpen) animateExtrasTray(false);
         if (activePanel === panelName && isPanelOpen) closePanel();
         else {
             setActivePanel(panelName); setIsPanelOpen(true);
@@ -218,16 +643,10 @@ export default function KurtaMain() {
     };
 
     const toggleExtrasTray = () => {
-        if (extrasTrayOpen) {
-            Animated.timing(extrasTrayAnim, { toValue: 0, duration: 220, easing: Easing.in(Easing.ease), useNativeDriver: true }).start(() => {
-                setExtrasTrayOpen(false);
-            });
-            return;
-        }
+        if (extrasTrayAnimatingRef.current) return;
+        if (extrasTrayOpen) return animateExtrasTray(false);
         if (isPanelOpen) closePanel();
-        setExtrasTrayOpen(true);
-        extrasTrayAnim.setValue(0);
-        Animated.timing(extrasTrayAnim, { toValue: 1, duration: 200, easing: Easing.out(Easing.ease), useNativeDriver: true }).start();
+        animateExtrasTray(true);
     };
 
     const closePanel = () => {
@@ -352,6 +771,77 @@ export default function KurtaMain() {
         };
     }, [infoFabric, brandNameWrapWidth, brandNameTextWidth, brandNameTranslateX]);
 
+    const backgroundThemeTargetIndex = useMemo(() => {
+        // Prioritize currently focused garment fabric first, then others as backup.
+        const prioritized = [];
+        if (fabricTab === 'Pajama') prioritized.push(selectedPajamaFabric);
+        else if (fabricTab === 'Sadri') prioritized.push(selectedSadriFabric);
+        else if (fabricTab === 'Coat') prioritized.push(selectedCoatFabric);
+        else prioritized.push(selectedFabric);
+
+        prioritized.push(selectedFabric, selectedPajamaFabric);
+        if (selectedItems?.includes('sadri')) prioritized.push(selectedSadriFabric);
+        if (selectedItems?.includes('coat')) prioritized.push(selectedCoatFabric);
+
+        const deduped = [];
+        const seen = new Set();
+        prioritized.forEach((f) => {
+            if (!f) return;
+            const k = String(f.fabricID || f.id || f.name || '');
+            if (seen.has(k)) return;
+            seen.add(k);
+            deduped.push(f);
+        });
+        return pickThemeIndexFromFabrics(deduped);
+    }, [fabricTab, selectedFabric, selectedPajamaFabric, selectedSadriFabric, selectedCoatFabric, selectedItems]);
+
+    const startBgTransition = useCallback((toThemeIndex) => {
+        if (toThemeIndex === activeBgThemeIndex) return;
+        if (bgAnimatingRef.current) {
+            bgPendingThemeRef.current = toThemeIndex;
+            return;
+        }
+        if (bgTransitionTimerRef.current) {
+            clearTimeout(bgTransitionTimerRef.current);
+            bgTransitionTimerRef.current = null;
+        }
+        bgAnimatingRef.current = true;
+        bgTransitionTimerRef.current = setTimeout(() => {
+            setIncomingBgThemeIndex(toThemeIndex);
+            bgFadeAnim.setValue(0);
+            Animated.timing(bgFadeAnim, {
+                toValue: 1,
+                duration: 3200,
+                easing: Easing.inOut(Easing.ease),
+                useNativeDriver: true,
+            }).start(() => {
+                setActiveBgThemeIndex(toThemeIndex);
+                setIncomingBgThemeIndex(null);
+                bgFadeAnim.setValue(0);
+                bgAnimatingRef.current = false;
+                bgTransitionTimerRef.current = null;
+                const pending = bgPendingThemeRef.current;
+                bgPendingThemeRef.current = null;
+                if (typeof pending === 'number' && pending !== toThemeIndex) {
+                    startBgTransition(pending);
+                }
+            });
+        }, 520);
+    }, [activeBgThemeIndex, bgFadeAnim]);
+
+    useEffect(() => {
+        if (backgroundThemeTargetIndex === activeBgThemeIndex) return undefined;
+        startBgTransition(backgroundThemeTargetIndex);
+        return undefined;
+    }, [backgroundThemeTargetIndex, activeBgThemeIndex, startBgTransition]);
+
+    useEffect(() => () => {
+        if (bgTransitionTimerRef.current) {
+            clearTimeout(bgTransitionTimerRef.current);
+            bgTransitionTimerRef.current = null;
+        }
+    }, []);
+
     const renderInfoDetailRow = (icon, label, value, opts = {}) => {
         const multiline = !!opts.multiline;
         return (
@@ -366,6 +856,53 @@ export default function KurtaMain() {
             </View>
         );
     };
+
+    const summaryTabs = useMemo(() => {
+        const tabs = ['Kurta', 'Pajama'];
+        if (selectedItems.includes('sadri')) tabs.push('Sadri');
+        if (selectedItems.includes('coat')) tabs.push('Coat');
+        return tabs;
+    }, [selectedItems]);
+
+    useEffect(() => {
+        if (!summaryTabs.includes(summaryTab)) {
+            setSummaryTab(summaryTabs[0] || 'Kurta');
+        }
+    }, [summaryTab, summaryTabs]);
+
+    const getSummaryFabricForTab = useCallback((tab) => {
+        if (tab === 'Pajama') return selectedPajamaFabric;
+        if (tab === 'Sadri') return selectedSadriFabric;
+        if (tab === 'Coat') return selectedCoatFabric;
+        return selectedFabric;
+    }, [selectedFabric, selectedPajamaFabric, selectedSadriFabric, selectedCoatFabric]);
+
+    const getSummaryStyleItems = useCallback((tab) => {
+        const selectedKeysByTab = {
+            Kurta: ['bottomCut', 'placketStyle', 'pocketQty', 'epaulette', 'sleeve', 'cuffStyle'],
+            Pajama: ['pajamaType', 'beltType'],
+            Sadri: ['sadriType'],
+            Coat: ['coatType', 'coatLapel', 'coatBackStyle'],
+        };
+        const selectedKeys = selectedKeysByTab[tab] || [];
+        return selectedKeys
+            .map((key) => {
+                const value = selections?.[key];
+                if (value == null || value === '') return null;
+                const matchingSection = KURTA_STYLE_OPTIONS.find((s) =>
+                    s.key === key && Array.isArray(s.options) && s.options.some((o) => o.value === value)
+                );
+                const option = matchingSection?.options?.find((o) => o.value === value);
+                if (!matchingSection || !option) return null;
+                return {
+                    key,
+                    title: matchingSection.title,
+                    label: option.label,
+                    Icon: option.icon,
+                };
+            })
+            .filter(Boolean);
+    }, [selections]);
 
     const renderFabricCard = (fabric, isActive, onSelect, infoIconSize = 24) => (
         <TouchableOpacity
@@ -792,6 +1329,20 @@ export default function KurtaMain() {
 
     return (
         <SafeAreaView style={styles.container}>
+            <View pointerEvents="none" style={styles.dynamicBgLayer}>
+                <BackgroundGradient
+                    start={BG_THEMES[activeBgThemeIndex].start}
+                    end={BG_THEMES[activeBgThemeIndex].end}
+                />
+                {incomingBgThemeIndex != null ? (
+                    <Animated.View style={[StyleSheet.absoluteFillObject, { opacity: bgFadeAnim }]}>
+                        <BackgroundGradient
+                            start={BG_THEMES[incomingBgThemeIndex].start}
+                            end={BG_THEMES[incomingBgThemeIndex].end}
+                        />
+                    </Animated.View>
+                ) : null}
+            </View>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                     <Text style={styles.backText}>←</Text>
@@ -800,11 +1351,39 @@ export default function KurtaMain() {
             </View>
 
             {/* --- LAYER 1: 3D MODEL ENGINE --- */}
-            <View style={styles.modelContainer}>
-                <FullScreenCarousel
-                    ref={carouselRef}
-                    data={buildSlides()}
-                />
+            <View
+                ref={shareCaptureRef}
+                collapsable={false}
+                style={[styles.shareCaptureContainer, isPreparingShareShot && styles.shareCapturePreparing]}
+            >
+                <View style={styles.modelContainer}>
+                    <FullScreenCarousel
+                        ref={carouselRef}
+                        data={buildSlides()}
+                    />
+                </View>
+                {isPreparingShareShot ? (
+                    <View pointerEvents="none" style={styles.shareShotOverlay}>
+                        <View style={styles.shareLogoWrap}>
+                            <Image source={appLogo} style={styles.shareLogoImg} resizeMode="contain" />
+                        </View>
+                        <View style={styles.shareBottomLeftWrap}>
+                            {shareLinkForShot ? (
+                                <View style={styles.shareQrWrap}>
+                                    <QRCode value={shareLinkForShot} size={58} backgroundColor="white" color="#14213D" />
+                                </View>
+                            ) : null}
+                            <View style={styles.shareSignatureWrap}>
+                                <Text style={styles.shareSignatureText}>Design by Customer</Text>
+                                {shareLinkForShot ? (
+                                    <Text style={styles.shareSignatureLink} numberOfLines={2}>
+                                        {shareLinkForShot}
+                                    </Text>
+                                ) : null}
+                            </View>
+                        </View>
+                    </View>
+                ) : null}
             </View>
 
             <View style={styles.rightMenu}>
@@ -865,7 +1444,23 @@ export default function KurtaMain() {
                                 ],
                             }}
                         >
-                            <TouchableOpacity style={styles.extrasTraySlot} activeOpacity={0.85} onPress={() => { }}>
+                            <TouchableOpacity
+                                style={styles.extrasTraySlot}
+                                activeOpacity={0.85}
+                                onPress={() => {
+                                    if (id === 0) {
+                                        setSummaryTab(fabricTab || 'Kurta');
+                                        setSummaryOpen(true);
+                                        animateExtrasTray(false);
+                                        return;
+                                    }
+                                    if (id === 2) {
+                                        handleSharePreset();
+                                        animateExtrasTray(false);
+                                        return;
+                                    }
+                                }}
+                            >
                                 <Icon width={40} height={40} />
                                 <Text style={styles.extrasTraySlotLabel}>{label}</Text>
                             </TouchableOpacity>
@@ -1203,6 +1798,96 @@ export default function KurtaMain() {
                 </View>
             )}
 
+            {isSummaryOpen && (
+                <View style={styles.buttonModalOverlay}>
+                    <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setSummaryOpen(false)} />
+                    <View style={styles.summaryModalContainer}>
+                        <View style={styles.buttonModalHeader}>
+                            <Text style={styles.buttonModalTitle}>Summary</Text>
+                            <TouchableOpacity onPress={() => setSummaryOpen(false)}>
+                                <Text style={styles.closeBtn}>×</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.summaryTabsRow}>
+                            {summaryTabs.map((tab) => (
+                                <TouchableOpacity
+                                    key={tab}
+                                    style={[styles.summaryTabBtn, summaryTab === tab && styles.summaryTabBtnActive]}
+                                    onPress={() => setSummaryTab(tab)}
+                                >
+                                    <Text style={[styles.summaryTabText, summaryTab === tab && styles.summaryTabTextActive]}>{tab}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        <ScrollView style={styles.infoScroll} contentContainerStyle={styles.infoContent}>
+                            <Text style={styles.summarySectionTitle}>Fabric Details</Text>
+                            <View style={styles.infoBrandBanner}>
+                                {(() => {
+                                    const fabric = getSummaryFabricForTab(summaryTab);
+                                    const logoSource = getBrandLogoSource(fabric);
+                                    if (logoSource && isSvgLogoSource(logoSource)) {
+                                        return (
+                                            <View style={styles.infoBrandLogo}>
+                                                <SvgCssUri uri={logoSource.uri} width="100%" height="100%" />
+                                            </View>
+                                        );
+                                    }
+                                    if (logoSource) {
+                                        return <Image source={logoSource} style={styles.infoBrandLogo} resizeMode="contain" />;
+                                    }
+                                    return (
+                                        <View style={styles.infoBrandLogoFallback}>
+                                            <Text style={styles.infoBrandLogoFallbackText} numberOfLines={1}>
+                                                {(getSummaryFabricForTab(summaryTab)?.brand || 'Brand').toUpperCase()}
+                                            </Text>
+                                        </View>
+                                    );
+                                })()}
+                                <View style={styles.infoBrandNameWrap}>
+                                    <View style={styles.infoBrandNameViewport}>
+                                        <Text style={styles.infoBrandName} numberOfLines={1}>
+                                            {getSummaryFabricForTab(summaryTab)?.name || '-'}
+                                        </Text>
+                                    </View>
+                                </View>
+                            </View>
+
+                            <View style={styles.summaryDivider} />
+                            <Text style={styles.summarySectionTitle}>Style Details</Text>
+
+                            <View style={styles.summaryStyleGrid}>
+                                {getSummaryStyleItems(summaryTab).map((item) => (
+                                    <View key={item.key} style={styles.summaryStyleItem}>
+                                        {item.Icon ? <item.Icon width={58} height={58} /> : <View style={styles.summaryStyleIconFallback} />}
+                                        <Text style={styles.summaryStyleLabel}>{item.title}</Text>
+                                        <Text style={styles.summaryStyleValue}>{item.label}</Text>
+                                    </View>
+                                ))}
+                            </View>
+
+                            {summaryTab !== 'Pajama' ? (
+                                <View style={styles.summaryMetaCard}>
+                                    <Text style={styles.summaryMetaRow}>
+                                        Button: {summaryTab === 'Sadri'
+                                            ? (selectedSadriButton?.name || 'None')
+                                            : summaryTab === 'Coat'
+                                                ? (selectedCoatButton?.name || 'None')
+                                                : (selectedButton?.name || 'None')}
+                                    </Text>
+                                    <Text style={styles.summaryMetaRow}>
+                                        Embroidery: {summaryTab === 'Sadri'
+                                            ? (EMBROIDERY_COLLECTIONS.find((e) => e.id === selections.sadriEmbroideryID)?.name || 'None')
+                                            : (EMBROIDERY_COLLECTIONS.find((e) => e.id === selections.embroideryID)?.name || 'None')}
+                                    </Text>
+                                </View>
+                            ) : null}
+                        </ScrollView>
+                    </View>
+                </View>
+            )}
+
             <Modal
                 visible={isFabricViewerOpen}
                 transparent
@@ -1210,47 +1895,47 @@ export default function KurtaMain() {
                 onRequestClose={() => setIsFabricViewerOpen(false)}
             >
                 <GestureHandlerRootView style={{ flex: 1 }}>
-                <View style={styles.viewerOverlay}>
-                    <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setIsFabricViewerOpen(false)} />
-                    <View style={styles.viewerTopBar}>
-                        <Text style={styles.viewerCounter}>
-                            {fabricViewerImages.length ? `${fabricViewerIndex + 1}/${fabricViewerImages.length}` : '0/0'}
-                        </Text>
-                        <TouchableOpacity onPress={() => setIsFabricViewerOpen(false)}>
-                            <Text style={styles.viewerClose}>×</Text>
-                        </TouchableOpacity>
-                    </View>
-                    <View style={styles.viewerBody}>
-                        {fabricViewerImages.length > 1 ? (
-                            <TouchableOpacity
-                                style={[styles.viewerSideArrow, styles.viewerLeftArrow]}
-                                onPress={() => setFabricViewerIndex((p) => (p - 1 + fabricViewerImages.length) % fabricViewerImages.length)}
-                            >
-                                <Text style={styles.viewerArrowText}>‹</Text>
+                    <View style={styles.viewerOverlay}>
+                        <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setIsFabricViewerOpen(false)} />
+                        <View style={styles.viewerTopBar}>
+                            <Text style={styles.viewerCounter}>
+                                {fabricViewerImages.length ? `${fabricViewerIndex + 1}/${fabricViewerImages.length}` : '0/0'}
+                            </Text>
+                            <TouchableOpacity onPress={() => setIsFabricViewerOpen(false)}>
+                                <Text style={styles.viewerClose}>×</Text>
                             </TouchableOpacity>
-                        ) : null}
-
-                        <View style={styles.viewerImageScroll}>
-                            <View style={styles.viewerImageScrollContent}>
-                                {fabricViewerImages[fabricViewerIndex] ? (
-                                    <ZoomableImage
-                                        source={fabricViewerImages[fabricViewerIndex]}
-                                        imageKey={`${fabricViewerIndex}`}
-                                    />
-                                ) : null}
-                            </View>
                         </View>
+                        <View style={styles.viewerBody}>
+                            {fabricViewerImages.length > 1 ? (
+                                <TouchableOpacity
+                                    style={[styles.viewerSideArrow, styles.viewerLeftArrow]}
+                                    onPress={() => setFabricViewerIndex((p) => (p - 1 + fabricViewerImages.length) % fabricViewerImages.length)}
+                                >
+                                    <Text style={styles.viewerArrowText}>‹</Text>
+                                </TouchableOpacity>
+                            ) : null}
 
-                        {fabricViewerImages.length > 1 ? (
-                            <TouchableOpacity
-                                style={[styles.viewerSideArrow, styles.viewerRightArrow]}
-                                onPress={() => setFabricViewerIndex((p) => (p + 1) % fabricViewerImages.length)}
-                            >
-                                <Text style={styles.viewerArrowText}>›</Text>
-                            </TouchableOpacity>
-                        ) : null}
+                            <View style={styles.viewerImageScroll}>
+                                <View style={styles.viewerImageScrollContent}>
+                                    {fabricViewerImages[fabricViewerIndex] ? (
+                                        <ZoomableImage
+                                            source={fabricViewerImages[fabricViewerIndex]}
+                                            imageKey={`${fabricViewerIndex}`}
+                                        />
+                                    ) : null}
+                                </View>
+                            </View>
+
+                            {fabricViewerImages.length > 1 ? (
+                                <TouchableOpacity
+                                    style={[styles.viewerSideArrow, styles.viewerRightArrow]}
+                                    onPress={() => setFabricViewerIndex((p) => (p + 1) % fabricViewerImages.length)}
+                                >
+                                    <Text style={styles.viewerArrowText}>›</Text>
+                                </TouchableOpacity>
+                            ) : null}
+                        </View>
                     </View>
-                </View>
                 </GestureHandlerRootView>
             </Modal>
 
@@ -1282,7 +1967,70 @@ export default function KurtaMain() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: CustomTheme.backgroundSecondary },
+    shareCaptureContainer: {
+        flex: 1,
+        position: 'relative',
+    },
+    shareCapturePreparing: {
+        backgroundColor: '#8e9493',
+    },
+    dynamicBgLayer: {
+        ...StyleSheet.absoluteFillObject,
+        zIndex: 0,
+    },
     modelContainer: { flex: 1, zIndex: 1, position: 'relative', marginTop: -60 },
+    shareShotOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        zIndex: 50,
+        justifyContent: 'space-between',
+        paddingTop: 18,
+        paddingHorizontal: 14,
+        paddingBottom: 26,
+    },
+    shareLogoWrap: {
+        alignSelf: 'flex-end',
+        backgroundColor: 'rgba(255,255,255,0.9)',
+        borderRadius: 10,
+        paddingHorizontal: 8,
+        paddingVertical: 6,
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.08)',
+    },
+    shareLogoImg: {
+        width: 34,
+        height: 34,
+    },
+    shareSignatureWrap: {
+        alignSelf: 'flex-start',
+        backgroundColor: 'rgba(20,33,61,0.78)',
+        borderRadius: 10,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+    },
+    shareBottomLeftWrap: {
+        alignSelf: 'flex-start',
+        alignItems: 'flex-start',
+        gap: 6,
+    },
+    shareQrWrap: {
+        backgroundColor: 'rgba(255,255,255,0.95)',
+        borderRadius: 8,
+        padding: 6,
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.12)',
+    },
+    shareSignatureText: {
+        color: '#ffffff',
+        fontSize: 12,
+        fontWeight: '700',
+        letterSpacing: 0.2,
+    },
+    shareSignatureLink: {
+        color: 'rgba(255,255,255,0.9)',
+        fontSize: 9,
+        marginTop: 4,
+        maxWidth: 190,
+    },
     previewLabel: { position: 'absolute', top: 12, left: 12, backgroundColor: '#ffffff', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: CustomTheme.accentGold },
     previewLabelText: { color: CustomTheme.accentGold, fontSize: 12, fontWeight: '700' },
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 10, zIndex: 10 },
@@ -1425,7 +2173,7 @@ const styles = StyleSheet.create({
     },
     checkoutBtnTablet: {
         maxWidth: 220,
-        paddingHorizontal:60
+        paddingHorizontal: 60
     },
     checkoutText: { color: CustomTheme.textPrimary, fontSize: 14, fontWeight: '800', letterSpacing: 0.4 },
     checkoutChevron: { color: CustomTheme.textPrimary, fontSize: 18, fontWeight: '800', marginLeft: 2, marginTop: -1 },
@@ -1523,7 +2271,7 @@ const styles = StyleSheet.create({
     infoBrandName: {
         fontSize: 12,
         fontWeight: '800',
-        color:'black',
+        color: 'black',
         alignSelf: 'flex-end',
         textAlign: 'center',
     },
@@ -1648,6 +2396,99 @@ const styles = StyleSheet.create({
         color: '#14213D',
         fontWeight: '800',
         fontSize: 12,
+    },
+    summaryModalContainer: {
+        width: '92%',
+        maxHeight: '82%',
+        backgroundColor: '#ffffff',
+        borderRadius: 22,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: '#dbe3ee',
+    },
+    summaryTabsRow: {
+        flexDirection: 'row',
+        borderBottomWidth: 1,
+        borderColor: '#e5e7eb',
+        paddingHorizontal: 14,
+        paddingTop: 6,
+        gap: 10,
+    },
+    summaryTabBtn: {
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderBottomWidth: 2,
+        borderBottomColor: 'transparent',
+    },
+    summaryTabBtnActive: {
+        borderBottomColor: '#14213D',
+    },
+    summaryTabText: {
+        fontSize: 14,
+        color: '#64748b',
+        fontWeight: '600',
+    },
+    summaryTabTextActive: {
+        color: '#14213D',
+        fontWeight: '800',
+    },
+    summarySectionTitle: {
+        marginTop: 4,
+        marginBottom: 10,
+        fontSize: 34 / 2,
+        fontWeight: '800',
+        color: '#1f2937',
+        textAlign: 'center',
+    },
+    summaryDivider: {
+        marginTop: 14,
+        marginBottom: 12,
+        borderTopWidth: 1,
+        borderTopColor: '#d1d5db',
+    },
+    summaryStyleGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        rowGap: 14,
+    },
+    summaryStyleItem: {
+        width: '31%',
+        alignItems: 'center',
+    },
+    summaryStyleIconFallback: {
+        width: 58,
+        height: 58,
+        borderRadius: 12,
+        backgroundColor: '#eef2f7',
+    },
+    summaryStyleLabel: {
+        marginTop: 5,
+        fontSize: 11,
+        color: '#374151',
+        textAlign: 'center',
+        fontWeight: '700',
+    },
+    summaryStyleValue: {
+        marginTop: 2,
+        fontSize: 11,
+        color: '#6b7280',
+        textAlign: 'center',
+    },
+    summaryMetaCard: {
+        marginTop: 14,
+        backgroundColor: '#f8fafc',
+        borderRadius: 10,
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+    },
+    summaryMetaRow: {
+        fontSize: 12,
+        color: '#1f2937',
+        fontWeight: '600',
+        marginBottom: 6,
     },
     viewerOverlay: {
         flex: 1,
