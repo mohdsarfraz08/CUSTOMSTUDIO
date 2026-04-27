@@ -55,6 +55,12 @@ const EXTRAS_TRAY_ITEMS = [
     { id: 3, Icon: ExtrasSkinTone, label: 'Skin Tone' },
 ];
 
+function resolveSvgComponent(iconModule) {
+    if (typeof iconModule === 'function') return iconModule;
+    if (iconModule && typeof iconModule.default === 'function') return iconModule.default;
+    return null;
+}
+
 const PUBLIC_SHARE_BASE_URL = 'https://maviinci.in/s';
 const RENDER_LOADING_ANIMATION_URL = 'https://lottie.host/16b69e12-0efb-4061-b33d-12dc2b93fd84/Ax2k12jKRd.lottie';
 const SADRI_UPPER_POCKET_BLOCKED_TYPES = new Set(['SS', 'AA', 'CC', 'DD', 'EE', 'N']);
@@ -474,8 +480,8 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
             const baseList = sub?.length ? sub : fabrics;
             if (!fabricSearchQuery) return baseList;
             const q = fabricSearchQuery.toLowerCase();
-            return baseList.filter(f => 
-                (f.name && f.name.toLowerCase().includes(q)) || 
+            return baseList.filter(f =>
+                (f.name && f.name.toLowerCase().includes(q)) ||
                 (f.brand && f.brand.toLowerCase().includes(q))
             );
         },
@@ -580,8 +586,7 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
             return;
         }
         const slides = buildEmbroideryProfileCarouselSources(infoEmbroidery.item);
-        const pm = infoEmbroidery.panelMode || 'Kurta';
-        if (pm === 'Sadri' && slides.length > 1) setEmbInfoImageIndex(1);
+        if (slides.length > 1) setEmbInfoImageIndex(1);
         else setEmbInfoImageIndex(0);
     }, [infoEmbroidery]);
     const [infoImageIndex, setInfoImageIndex] = useState(0);
@@ -790,7 +795,7 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
 
     useEffect(() => {
         if (hasInitialHeroRenderLoaded) return;
-        
+
         let timer;
         if (firstHeroRenderReady) {
             // Wait a moment for React Native <Image> components to decode and paint 
@@ -1240,7 +1245,7 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
         if (!embroidery?.id) return;
         const db = getFirestoreDb();
         if (!db) return;
-        fetchEmbroideryUploadedCollectionsForStyleId(db, embroidery.id, panelMode).catch(() => {});
+        fetchEmbroideryUploadedCollectionsForStyleId(db, embroidery.id, panelMode).catch(() => { });
     }, []);
 
     const buildSharePreset = useCallback(() => ({
@@ -1418,7 +1423,7 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
         const blockSadriUpperPocket = type === 'sadriType' && isSadriUpperPocketBlocked(value);
         const forceSadriUpperPocketOff = type === 'sadriUpperPocket' && sadriUpperPocketForcedOff && String(value) === '1';
         const forceCoatUpperPocketOff = type === 'coatUpperPocket' && coatUpperPocketForcedOff && String(value) === '1';
-        
+
         triggerStyleTransitionLoading();
         setSelections(prev => {
             const nextValue = (forceSadriUpperPocketOff || forceCoatUpperPocketOff) ? '0' : value;
@@ -1659,6 +1664,7 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
         const tabs = ['Kurta', 'Pajama'];
         if (selectedItems.includes('sadri')) tabs.push('Sadri');
         if (selectedItems.includes('coat')) tabs.push('Coat');
+        tabs.push('Cost Breakup');
         return tabs;
     }, [selectedItems]);
 
@@ -1667,6 +1673,8 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
             setSummaryTab(summaryTabs[0] || 'Kurta');
         }
     }, [summaryTab, summaryTabs]);
+
+    const isCostBreakupTab = summaryTab === 'Cost Breakup';
 
     const getSummaryFabricForTab = useCallback((tab) => {
         if (tab === 'Pajama') return selectedPajamaFabric;
@@ -1703,6 +1711,7 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
     }, [selections]);
 
     const getSummaryEmbroideryImage = useCallback((tab) => {
+        if (tab === 'Pajama') return null;
         const embroideryId = tab === 'Sadri'
             ? selections.sadriEmbroideryID
             : tab === 'Coat'
@@ -1730,6 +1739,7 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
     }, [selections, embroideryCollections, embroideryRenders]);
 
     const getSummaryButtonImage = useCallback((tab) => {
+        if (tab === 'Pajama') return null;
         const button = tab === 'Sadri'
             ? selectedSadriButton
             : tab === 'Coat'
@@ -1739,29 +1749,42 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
         return button.icon || button.image || null;
     }, [selectedButton, selectedSadriButton, selectedCoatButton]);
 
-    const renderFabricCard = (fabric, isActive, onSelect, infoIconSize = 24) => (
-        <TouchableOpacity
-            key={fabric.fabricID}
-            style={[styles.fabricCard, isActive && styles.fabricCardActive, effectiveTV && { marginBottom: 8 }]}
-            onPress={onSelect}
-            activeOpacity={0.9}
-        >
-            <Image source={fabric.thumbnail} style={[styles.fabricImage, effectiveTV && { height: 80 }]} resizeMode="cover" />
-            <View style={[styles.fabricInfo, effectiveTV && { minHeight: 36, paddingVertical: 5 }]}>
-                <View style={styles.fabricInfoTextWrap}>
-                    <Text style={[styles.fabricName, effectiveTV && { fontSize: 12 }]} numberOfLines={1}>{fabric.name}</Text>
-                    <Text style={[styles.fabricBrand, effectiveTV && { fontSize: 10 }]} numberOfLines={1}>{fabric.brand}</Text>
+    const renderFabricCard = (fabric, isActive, onSelect, infoIconSize = 24) => {
+        const numericPrice = Number(fabric?.price);
+        const showPrice = Number.isFinite(numericPrice) && numericPrice > 0;
+        return (
+            <TouchableOpacity
+                key={fabric.fabricID}
+                style={[styles.fabricCard, isActive && styles.fabricCardActive, effectiveTV && { marginBottom: 8 }]}
+                onPress={onSelect}
+                activeOpacity={0.9}
+            >
+                <Image source={fabric.thumbnail} style={[styles.fabricImage, effectiveTV && { height: 80 }]} resizeMode="cover" />
+                
+                {showPrice ? (
+                    <View style={styles.fabricPriceBadge}>
+                        <Text style={[styles.fabricPrice, effectiveTV && { fontSize: 9 }]}>
+                            ₹ {Math.round(numericPrice).toLocaleString('en-IN')}
+                        </Text>
+                    </View>
+                ) : null}
+
+                <View style={[styles.fabricInfo, effectiveTV && { minHeight: 36, paddingVertical: 5 }]}>
+                    <View style={styles.fabricInfoTextWrap}>
+                        <Text style={[styles.fabricName, effectiveTV && { fontSize: 12 }]} numberOfLines={1}>{fabric.name}</Text>
+                        <Text style={[styles.fabricBrand, effectiveTV && { fontSize: 10 }]} numberOfLines={1}>{fabric.brand}</Text>
+                    </View>
+                    <TouchableOpacity
+                        onPress={() => openFabricInfo(fabric)}
+                        hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                        style={styles.fabricInfoIconBtn}
+                    >
+                        <MaterialIcons name="info-outline" size={infoIconSize} color="#C8A96A" />
+                    </TouchableOpacity>
                 </View>
-                <TouchableOpacity
-                    onPress={() => openFabricInfo(fabric)}
-                    hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-                    style={styles.fabricInfoIconBtn}
-                >
-                    <MaterialIcons name="info-outline" size={infoIconSize} color={CustomTheme.accentGold} />
-                </TouchableOpacity>
-            </View>
-        </TouchableOpacity>
-    );
+            </TouchableOpacity>
+        );
+    };
 
     const renderPanelContent = () => {
         const coatType = selections.coatType || 'NONE';
@@ -1809,19 +1832,19 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                     <View style={{ flex: 1 }}>
                         {/* KURTA FABRICS */}
                         {fabricTab === 'Kurta' && fabrics ? (
-                            <Animated.ScrollView 
-                                ref={el => { panelScrollRefs.current['fabric_Kurta'] = el; }} 
+                            <Animated.ScrollView
+                                ref={el => { panelScrollRefs.current['fabric_Kurta'] = el; }}
                                 onScroll={Animated.event(
                                     [{ nativeEvent: { contentOffset: { y: fabricPanelScrollY } } }],
-                                    { 
+                                    {
                                         useNativeDriver: true,
                                         listener: (e) => handlePanelScroll('Fabric', 'Kurta')(e)
                                     }
                                 )}
                                 onLayout={(e) => setFabricPanelVisibleHeight(e.nativeEvent.layout.height)}
                                 onContentSizeChange={(w, h) => setFabricPanelContentHeight(h)}
-                                scrollEventThrottle={16} 
-                                {...PANEL_SCROLL_PROPS} 
+                                scrollEventThrottle={16}
+                                {...PANEL_SCROLL_PROPS}
                                 contentContainerStyle={styles.gridContainer}
                             >
                                 {listForGarmentTab('Kurta').map((fabric) =>
@@ -1847,19 +1870,19 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
 
                         {/* PAJAMA FABRICS */}
                         {fabricTab === 'Pajama' && fabrics ? (
-                            <Animated.ScrollView 
-                                ref={el => { panelScrollRefs.current['fabric_Pajama'] = el; }} 
+                            <Animated.ScrollView
+                                ref={el => { panelScrollRefs.current['fabric_Pajama'] = el; }}
                                 onScroll={Animated.event(
                                     [{ nativeEvent: { contentOffset: { y: fabricPanelScrollY } } }],
-                                    { 
+                                    {
                                         useNativeDriver: true,
                                         listener: (e) => handlePanelScroll('Fabric', 'Pajama')(e)
                                     }
                                 )}
                                 onLayout={(e) => setFabricPanelVisibleHeight(e.nativeEvent.layout.height)}
                                 onContentSizeChange={(w, h) => setFabricPanelContentHeight(h)}
-                                scrollEventThrottle={16} 
-                                {...PANEL_SCROLL_PROPS} 
+                                scrollEventThrottle={16}
+                                {...PANEL_SCROLL_PROPS}
                                 contentContainerStyle={styles.gridContainer}
                             >
                                 {listForGarmentTab('Pajama').map((fabric) =>
@@ -1867,7 +1890,7 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                                         fabric,
                                         selectedPajamaFabric?.fabricID === fabric.fabricID,
                                         () => { setSelectedPajamaFabric(fabric); if (tvSessionId) sendCommand('SELECT_FABRIC', { fabricId: normalizeId(fabric.fabricID), garment: 'pajama' }); },
-                                        28
+                                        24
                                     )
                                 )}
                             </Animated.ScrollView>
@@ -1875,19 +1898,19 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
 
                         {/* SADRI FABRICS */}
                         {fabricTab === 'Sadri' && fabrics ? (
-                            <Animated.ScrollView 
-                                ref={el => { panelScrollRefs.current['fabric_Sadri'] = el; }} 
+                            <Animated.ScrollView
+                                ref={el => { panelScrollRefs.current['fabric_Sadri'] = el; }}
                                 onScroll={Animated.event(
                                     [{ nativeEvent: { contentOffset: { y: fabricPanelScrollY } } }],
-                                    { 
+                                    {
                                         useNativeDriver: true,
                                         listener: (e) => handlePanelScroll('Fabric', 'Sadri')(e)
                                     }
                                 )}
                                 onLayout={(e) => setFabricPanelVisibleHeight(e.nativeEvent.layout.height)}
                                 onContentSizeChange={(w, h) => setFabricPanelContentHeight(h)}
-                                scrollEventThrottle={16} 
-                                {...PANEL_SCROLL_PROPS} 
+                                scrollEventThrottle={16}
+                                {...PANEL_SCROLL_PROPS}
                                 contentContainerStyle={styles.gridContainer}
                             >
                                 {listForGarmentTab('Sadri').map((fabric) =>
@@ -1913,19 +1936,19 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
 
                         {/* COAT FABRICS */}
                         {fabricTab === 'Coat' && fabrics ? (
-                            <Animated.ScrollView 
-                                ref={el => { panelScrollRefs.current['fabric_Coat'] = el; }} 
+                            <Animated.ScrollView
+                                ref={el => { panelScrollRefs.current['fabric_Coat'] = el; }}
                                 onScroll={Animated.event(
                                     [{ nativeEvent: { contentOffset: { y: fabricPanelScrollY } } }],
-                                    { 
+                                    {
                                         useNativeDriver: true,
                                         listener: (e) => handlePanelScroll('Fabric', 'Coat')(e)
                                     }
                                 )}
                                 onLayout={(e) => setFabricPanelVisibleHeight(e.nativeEvent.layout.height)}
                                 onContentSizeChange={(w, h) => setFabricPanelContentHeight(h)}
-                                scrollEventThrottle={16} 
-                                {...PANEL_SCROLL_PROPS} 
+                                scrollEventThrottle={16}
+                                {...PANEL_SCROLL_PROPS}
                                 contentContainerStyle={styles.gridContainer}
                             >
                                 {listForGarmentTab('Coat').map((fabric) =>
@@ -1943,7 +1966,7 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                                                 setPendingCoatBtnId(normalizeId(targetBtnId));
                                             }
                                         },
-                                        18
+                                        24
                                     )
                                 )}
                             </Animated.ScrollView>
@@ -1987,23 +2010,23 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                 <View style={[StyleSheet.absoluteFill, { opacity: activePanel === 'Style' ? 1 : 0, zIndex: activePanel === 'Style' ? 10 : 0 }]} pointerEvents={activePanel === 'Style' ? 'auto' : 'none'}>
                     {KURTA_STYLE_OPTIONS ? (
                         <View style={{ flex: 1 }}>
-                            <Animated.ScrollView 
-                                ref={el => { panelScrollRefs.current['Style'] = el; }} 
+                            <Animated.ScrollView
+                                ref={el => { panelScrollRefs.current['Style'] = el; }}
                                 onScroll={Animated.event(
                                     [{ nativeEvent: { contentOffset: { y: stylePanelScrollY } } }],
-                                    { 
+                                    {
                                         useNativeDriver: true,
                                         listener: (e) => handlePanelScroll('Style', null)(e)
                                     }
-                                )} 
+                                )}
                                 onLayout={(e) => setStylePanelVisibleHeight(e.nativeEvent.layout.height)}
                                 onContentSizeChange={(w, h) => setStylePanelContentHeight(h)}
-                                scrollEventThrottle={16} 
-                                {...PANEL_SCROLL_PROPS} 
+                                scrollEventThrottle={16}
+                                {...PANEL_SCROLL_PROPS}
                                 contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 50 }}
                             >
                                 {selectedItems.includes('kurta') && (
-                                    <KurtaStylePanel 
+                                    <KurtaStylePanel
                                         selections={selections}
                                         handleStyleChange={handleStyleChange}
                                         selectedButton={selectedButton}
@@ -2011,13 +2034,13 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                                     />
                                 )}
                                 {selectedItems.includes('pajama') && (
-                                    <PajamaStylePanel 
+                                    <PajamaStylePanel
                                         selections={selections}
                                         handleStyleChange={handleStyleChange}
                                     />
                                 )}
                                 {selectedItems.includes('sadri') && (
-                                    <SadriStylePanel 
+                                    <SadriStylePanel
                                         selections={selections}
                                         handleStyleChange={handleStyleChange}
                                         selectedSadriButton={selectedSadriButton}
@@ -2027,7 +2050,7 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                                     />
                                 )}
                                 {selectedItems.includes('coat') && (
-                                    <CoatStylePanel 
+                                    <CoatStylePanel
                                         selections={selections}
                                         handleStyleChange={handleStyleChange}
                                         selectedCoatButton={selectedCoatButton}
@@ -2143,7 +2166,7 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                                                     hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
                                                     style={styles.fabricInfoIconBtn}
                                                 >
-                                                    <MaterialIcons name="info-outline" size={24} color="#475569" />
+                                                    <MaterialIcons name="info-outline" size={24} color="#C8A96A" />
                                                 </TouchableOpacity>
                                             </View>
                                         </View>
@@ -2171,20 +2194,117 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
         const n = Number(v);
         return Number.isFinite(n) ? n : 0;
     };
+    const formatInr = (value) => `₹ ${Math.max(0, Math.round(toNumber(value))).toLocaleString('en-IN')}`;
+    const deriveItemPricing = (item, effectivePrice) => {
+        const price = toNumber(effectivePrice);
+        if (!item || price <= 0) {
+            return { mrp: price, discountAmount: 0, finalPrice: price, discountPercent: 0 };
+        }
+        const original = toNumber(
+            item.mrp ?? item.MRP ?? item.originalPrice ?? item.listPrice ?? item.compareAtPrice
+        );
+        const basePrice = original > 0 ? original : price;
+        const explicitAmount = toNumber(
+            item.discountAmount ?? item.discount_value ?? item.discountValue
+        );
+        const rawDiscount = toNumber(item.discount ?? item.off ?? item.discountPercent);
+
+        let discountAmount = 0;
+        let discountPercent = 0;
+        if (explicitAmount > 0) {
+            discountAmount = Math.min(explicitAmount, basePrice);
+            discountPercent = basePrice > 0 ? (discountAmount / basePrice) * 100 : 0;
+        } else if (rawDiscount > 0) {
+            if (rawDiscount <= 1) {
+                discountPercent = rawDiscount * 100;
+                discountAmount = Math.min(basePrice * rawDiscount, basePrice);
+            } else if (rawDiscount <= 100) {
+                discountPercent = rawDiscount;
+                discountAmount = Math.min((basePrice * rawDiscount) / 100, basePrice);
+            } else {
+                discountAmount = Math.min(rawDiscount, basePrice);
+                discountPercent = basePrice > 0 ? (discountAmount / basePrice) * 100 : 0;
+            }
+        } else if (original > price) {
+            discountAmount = Math.max(0, original - price);
+            discountPercent = original > 0 ? (discountAmount / original) * 100 : 0;
+        }
+
+        const finalPrice = original > price
+            ? price
+            : Math.max(0, basePrice - discountAmount);
+        const mrp = Math.max(basePrice, finalPrice);
+        return {
+            mrp,
+            discountAmount,
+            finalPrice,
+            discountPercent: Math.max(0, Math.min(100, discountPercent)),
+        };
+    };
+    const formatPercent = (value) => `${toNumber(value).toFixed(0)}%`;
+
     const hasCoat = selectedItems.includes('coat');
     const hasSadri = selectedItems.includes('sadri');
     const hasOuterwear = hasCoat || hasSadri;
-    // Website-style total: selected garment collection prices only.
-    const kurtaTotal = toNumber(selectedFabric?.price);
-    const pajamaTotal = toNumber(selectedPajamaFabric?.price);
-    const sadriTotal = hasSadri ? toNumber(selectedSadriFabric?.price) : 0;
-    const coatTotal = hasCoat ? toNumber(selectedCoatFabric?.price) : 0;
-    const kurtaEmbroideryPrice = selections.embroideryCollection ? toNumber(selections.embroideryCollection?.price) : 0;
-    const sadriEmbroideryPrice = hasSadri && selections.sadriEmbroideryCollection
-        ? toNumber(selections.sadriEmbroideryCollection?.price)
-        : 0;
-    const embroideryPrice = kurtaEmbroideryPrice + sadriEmbroideryPrice;
-    const totalPrice = kurtaTotal + pajamaTotal + sadriTotal + coatTotal + embroideryPrice;
+    const kurtaPricing = deriveItemPricing(selectedFabric, toNumber(selectedFabric?.price));
+    const pajamaPricing = deriveItemPricing(selectedPajamaFabric, toNumber(selectedPajamaFabric?.price));
+    const sadriPricing = hasSadri ? deriveItemPricing(selectedSadriFabric, toNumber(selectedSadriFabric?.price)) : { mrp: 0, discountAmount: 0, finalPrice: 0, discountPercent: 0 };
+    const coatPricing = hasCoat ? deriveItemPricing(selectedCoatFabric, toNumber(selectedCoatFabric?.price)) : { mrp: 0, discountAmount: 0, finalPrice: 0, discountPercent: 0 };
+    const kurtaEmbPricing = deriveItemPricing(
+        selections.embroideryCollection,
+        selections.embroideryCollection ? toNumber(selections.embroideryCollection?.price) : 0
+    );
+    const sadriEmbPricing = hasSadri
+        ? deriveItemPricing(
+            selections.sadriEmbroideryCollection,
+            selections.sadriEmbroideryCollection ? toNumber(selections.sadriEmbroideryCollection?.price) : 0
+        )
+        : { mrp: 0, discountAmount: 0, finalPrice: 0, discountPercent: 0 };
+    const coatEmbPricing = hasCoat
+        ? deriveItemPricing(
+            selections.coatEmbroideryCollection,
+            selections.coatEmbroideryCollection ? toNumber(selections.coatEmbroideryCollection?.price) : 0
+        )
+        : { mrp: 0, discountAmount: 0, finalPrice: 0, discountPercent: 0 };
+
+    const totalPrice =
+        kurtaPricing.finalPrice
+        + pajamaPricing.finalPrice
+        + sadriPricing.finalPrice
+        + coatPricing.finalPrice
+        + kurtaEmbPricing.finalPrice
+        + sadriEmbPricing.finalPrice
+        + coatEmbPricing.finalPrice;
+
+    const totalDiscount =
+        kurtaPricing.discountAmount
+        + pajamaPricing.discountAmount
+        + sadriPricing.discountAmount
+        + coatPricing.discountAmount
+        + kurtaEmbPricing.discountAmount
+        + sadriEmbPricing.discountAmount
+        + coatEmbPricing.discountAmount;
+
+    const subtotalBeforeDiscount =
+        kurtaPricing.mrp
+        + pajamaPricing.mrp
+        + sadriPricing.mrp
+        + coatPricing.mrp
+        + kurtaEmbPricing.mrp
+        + sadriEmbPricing.mrp
+        + coatEmbPricing.mrp;
+
+    const costBreakdownRows = [
+        { key: 'kurta-fabric', label: 'Kurta', ...kurtaPricing },
+        { key: 'pajama-fabric', label: 'Pajama', ...pajamaPricing },
+        ...(hasSadri ? [{ key: 'sadri-fabric', label: 'Sadri', ...sadriPricing }] : []),
+        ...(hasCoat ? [{ key: 'coat-fabric', label: 'Coat', ...coatPricing }] : []),
+        { key: 'kurta-emb', label: 'Kurta Embroidery', ...kurtaEmbPricing },
+        ...(hasSadri ? [{ key: 'sadri-emb', label: 'Sadri Embroidery', ...sadriEmbPricing }] : []),
+        ...(hasCoat ? [{ key: 'coat-emb', label: 'Coat Embroidery', ...coatEmbPricing }] : []),
+    ];
+    const detailedCostBreakdownRows = costBreakdownRows
+        .filter((row) => row.mrp > 0 || row.discountAmount > 0 || row.finalPrice > 0);
 
     const sadriCode = selections.sadriType || 'SR';
     const firstCoatTypeIndex = KURTA_STYLE_OPTIONS.findIndex((section) => section.key === 'coatType');
@@ -2391,12 +2511,18 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                 >
                     {[IconFabric, IconStyle, IconEmbroidery].map((IconComponent, index) => {
                         const isActive = activePanel === IconComponent.displayName;
+                        const mainColor = isActive ? '#FFFFFF' : '#1D1D1D';
                         return (
                             <TouchableOpacity key={index} style={[styles.iconButton, isActive && styles.iconButtonActive, effectiveTV && { width: normalize(36), height: normalize(36), borderRadius: normalize(8) }]} onPress={() => togglePanel(IconComponent.displayName)}>
-                                <IconComponent size={effectiveTV ? normalize(16) : 28} color={isActive ? CustomTheme.accentGold : '#14213D'} />
-                                <Text style={[styles.iconText, isActive && { color: CustomTheme.accentGold, fontWeight: '900' }, { marginTop: 1, fontSize: effectiveTV ? normalize(7) : 11 }]}>
+                                <IconComponent size={effectiveTV ? normalize(14) : 22} color={mainColor} />
+                                <Text style={[styles.iconText, { color: mainColor, marginTop: 1, fontSize: effectiveTV ? normalize(6) : 9 }]}>
                                     {IconComponent.displayName === 'Embroidery' ? 'EMB' : IconComponent.displayName.toUpperCase()}
                                 </Text>
+                                {isActive && (
+                                    <View style={{ position: 'absolute', top: -4, right: -4, backgroundColor: '#FFFFFF', borderRadius: 9, width: 18, height: 18, justifyContent: 'center', alignItems: 'center', elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3 }}>
+                                        <MaterialIcons name="check" size={12} color="#000000" />
+                                    </View>
+                                )}
                             </TouchableOpacity>
                         );
                     })}
@@ -2415,7 +2541,9 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                             },
                         ]}
                     >
-                        {EXTRAS_TRAY_ITEMS.map(({ id, Icon, label }) => (
+                        {EXTRAS_TRAY_ITEMS.map(({ id, Icon, label }) => {
+                            const TrayIcon = resolveSvgComponent(Icon);
+                            return (
                             <Animated.View
                                 key={id}
                                 style={{
@@ -2442,19 +2570,29 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                                         if (id === 3) { setSkinToneModalOpen(true); animateExtrasTray(false); return; }
                                     }}
                                 >
-                                    <Icon width={effectiveTV ? normalize(24) : 40} height={effectiveTV ? normalize(24) : 40} />
-                                    <Text style={[styles.extrasTraySlotLabel, effectiveTV && { fontSize: normalize(7) }]}>{label}</Text>
+                                    {TrayIcon ? (
+                                        <TrayIcon width={effectiveTV ? normalize(18) : 26} height={effectiveTV ? normalize(18) : 26} />
+                                    ) : (
+                                        <MaterialIcons name="tune" size={effectiveTV ? normalize(18) : 26} color="#1D1D1D" />
+                                    )}
+                                    <Text style={[styles.extrasTraySlotLabel, effectiveTV && { fontSize: normalize(6) }]}>{label}</Text>
                                 </TouchableOpacity>
                             </Animated.View>
-                        ))}
+                            );
+                        })}
                     </Animated.View>
 
                     <TouchableOpacity
-                        style={[styles.iconButton, extrasTrayOpen && styles.iconButtonActive, { marginBottom: 0 }, effectiveTV && { width: normalize(36), height: normalize(36), borderRadius: normalize(8) }]}
+                        style={[styles.iconButton, extrasTrayOpen && styles.iconButtonActive, { marginBottom: 15 }, effectiveTV && { width: normalize(36), height: normalize(36), borderRadius: normalize(8) }]}
                         onPress={toggleExtrasTray}
                     >
-                        <IconExtras size={effectiveTV ? normalize(16) : 28} color={extrasTrayOpen ? CustomTheme.accentGold : '#14213D'} />
-                        <Text style={[styles.iconText, extrasTrayOpen && { color: CustomTheme.accentGold, fontWeight: '900' }, { marginTop: 1, fontSize: effectiveTV ? normalize(7) : 11 }]}>{extrasTrayOpen ? 'HIDE' : 'EXTRAS'}</Text>
+                        <IconExtras size={effectiveTV ? normalize(14) : 22} color={extrasTrayOpen ? '#FFFFFF' : '#1D1D1D'} />
+                        <Text style={[styles.iconText, { color: extrasTrayOpen ? '#FFFFFF' : '#1D1D1D', marginTop: 1, fontSize: effectiveTV ? normalize(6) : 9 }]}>{extrasTrayOpen ? 'HIDE' : 'EXTRAS'}</Text>
+                        {extrasTrayOpen && (
+                            <View style={{ position: 'absolute', top: -4, right: -4, backgroundColor: '#FFFFFF', borderRadius: 9, width: 18, height: 18, justifyContent: 'center', alignItems: 'center', elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3 }}>
+                                <MaterialIcons name="check" size={12} color="#000000" />
+                            </View>
+                        )}
                     </TouchableOpacity>
                 </View>
             </View>
@@ -2473,9 +2611,15 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
 
             {isPanelOpen && (
                 <Animated.View style={[styles.sidePanel, { width: panelWidth, bottom: panelBottomOffset + insets.bottom, transform: [{ translateX: slideAnim }] }]}>
+                    <TouchableOpacity onPress={closePanel} style={styles.sidePanelCloseBtn}>
+                        <MaterialIcons name="close" size={24} color="#000000" />
+                    </TouchableOpacity>
+
                     <View style={styles.panelHeader}>
-                        <Text style={[styles.panelTitle, effectiveTV && { fontSize: normalize(20) }]}>Select {activePanel}</Text>
-                        <TouchableOpacity onPress={closePanel}><Text style={[styles.closeBtn, effectiveTV && { fontSize: normalize(22) }]}>✕</Text></TouchableOpacity>
+                        <Text style={[styles.panelTitle, effectiveTV && { fontSize: normalize(20) }]}>
+                            {activePanel}
+                        </Text>
+                        <View style={styles.panelTitleUnderline} />
                     </View>
                     <View style={styles.panelContentArea}>{renderPanelContent()}</View>
                 </Animated.View>
@@ -2680,14 +2824,20 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
             {infoFabric && (
                 <View style={styles.buttonModalOverlay}>
                     <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setInfoFabric(null)} />
-                    <View style={styles.infoModalContainer}>
-                        <View style={styles.buttonModalHeader}>
-                            <Text style={styles.buttonModalTitle}>Fabric Info</Text>
-                            <TouchableOpacity onPress={() => setInfoFabric(null)}>
-                                <Text style={styles.closeBtn}>×</Text>
-                            </TouchableOpacity>
+                    <View style={[styles.infoModalContainer, isTabletViewport && { width: '85%', maxHeight: '92%' }]}>
+                        <TouchableOpacity onPress={() => setInfoFabric(null)} style={styles.modalFloatingClose}>
+                            <MaterialIcons name="close" size={22} color="#000000" />
+                        </TouchableOpacity>
+
+                        <View style={styles.panelHeader}>
+                            <Text style={styles.panelTitle}>Fabric Info</Text>
+                            <View style={styles.panelTitleUnderline} />
                         </View>
-                        <ScrollView style={styles.infoScroll} contentContainerStyle={styles.infoContent}>
+
+                        <ScrollView 
+                            style={[styles.infoScroll, isTabletViewport && { maxHeight: 800 }]} 
+                            contentContainerStyle={styles.infoContent}
+                        >
                             <View style={styles.infoTitleBlock}>
                                 <View style={styles.infoBrandBanner}>
                                     {(() => {
@@ -2706,12 +2856,14 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                                         }
                                         if (logoSource) {
                                             return (
-                                                <Image
-                                                    source={logoSource}
-                                                    style={styles.infoBrandLogo}
-                                                    resizeMode="contain"
-                                                    onError={() => setInfoBrandLogoFailed(true)}
-                                                />
+                                                <View style={styles.infoBrandLogo}>
+                                                    <Image
+                                                        source={logoSource}
+                                                        style={{ width: '90%', height: '90%' }}
+                                                        resizeMode="contain"
+                                                        onError={() => setInfoBrandLogoFailed(true)}
+                                                    />
+                                                </View>
                                             );
                                         }
                                         return (
@@ -2753,24 +2905,26 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                                                 setIsFabricViewerOpen(true);
                                             }}
                                         >
-                                            <Image source={images[idx]} style={styles.infoImage} resizeMode="cover" />
+                                            <Image source={images[idx]} style={[styles.infoImage, isTabletViewport && { height: 480 }]} resizeMode="cover" />
                                         </TouchableOpacity>
                                         {images.length > 1 ? (
-                                            <View style={styles.infoImageControls}>
-                                                <TouchableOpacity
-                                                    style={styles.infoImageNav}
-                                                    onPress={() => setInfoImageIndex((p) => (p - 1 + images.length) % images.length)}
-                                                >
-                                                    <Text style={styles.infoImageNavText}>‹</Text>
-                                                </TouchableOpacity>
-                                                <Text style={styles.infoImageCounter}>{idx + 1}/{images.length}</Text>
-                                                <TouchableOpacity
-                                                    style={styles.infoImageNav}
-                                                    onPress={() => setInfoImageIndex((p) => (p + 1) % images.length)}
-                                                >
-                                                    <Text style={styles.infoImageNavText}>›</Text>
-                                                </TouchableOpacity>
-                                            </View>
+                                            <>
+                                                <View style={styles.infoImageControlsOverlay} pointerEvents="box-none">
+                                                    <TouchableOpacity
+                                                        style={[styles.embInfoNavArrow, styles.embInfoNavArrowLeft, { width: 34, height: 34 }]}
+                                                        onPress={() => setInfoImageIndex((p) => (p - 1 + images.length) % images.length)}
+                                                    >
+                                                        <MaterialIcons name="chevron-left" size={24} color="#1D1D1D" />
+                                                    </TouchableOpacity>
+
+                                                    <TouchableOpacity
+                                                        style={[styles.embInfoNavArrow, styles.embInfoNavArrowRight, { width: 34, height: 34 }]}
+                                                        onPress={() => setInfoImageIndex((p) => (p + 1) % images.length)}
+                                                    >
+                                                        <MaterialIcons name="chevron-right" size={24} color="#1D1D1D" />
+                                                    </TouchableOpacity>
+                                                </View>
+                                            </>
                                         ) : null}
                                     </View>
                                 );
@@ -2787,21 +2941,33 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                                 {renderInfoDetailRow('science', 'Composition', infoFabric.composition || '-', { multiline: true })}
                                 {renderInfoDetailRow('texture', 'Weave', infoFabric.weave || '-')}
                                 {renderInfoDetailRow('grid_view', 'Pattern', infoFabric.pattern || '-')}
-                                {renderInfoDetailRow('straighten', 'Width', infoFabric.width || '-')}
                             </View>
-                            {typeof infoFabric.link === 'string' && infoFabric.link.length > 0 ? (
-                                <TouchableOpacity
-                                    style={styles.infoLinkBtn}
-                                    onPress={async () => {
-                                        const url = infoFabric.link;
-                                        if (await Linking.canOpenURL(url)) {
-                                            Linking.openURL(url);
-                                        }
-                                    }}
-                                >
-                                    <Text style={styles.infoLinkText}>Open Link</Text>
-                                </TouchableOpacity>
-                            ) : null}
+
+                            {(() => {
+                                const isSelected = (fabricTab === 'Kurta' && selectedFabric?.fabricID === infoFabric.fabricID) ||
+                                    (fabricTab === 'Pajama' && selectedPajamaFabric?.fabricID === infoFabric.fabricID) ||
+                                    (fabricTab === 'Sadri' && selectedSadriFabric?.fabricID === infoFabric.fabricID) ||
+                                    (fabricTab === 'Coat' && selectedCoatFabric?.fabricID === infoFabric.fabricID);
+                                return (
+                                    <TouchableOpacity
+                                        style={[styles.infoApplyBtn, isSelected && { backgroundColor: '#F3EFE7', borderColor: '#D8CDB5' }]}
+                                        disabled={isSelected}
+                                        onPress={() => {
+                                            const tab = fabricTab || 'Kurta';
+                                            if (tab === 'Kurta') { setSelectedFabric(infoFabric); if (tvSessionId) sendCommand('SELECT_FABRIC', { fabricId: normalizeId(infoFabric.fabricID), garment: 'kurta' }); }
+                                            else if (tab === 'Pajama') { setSelectedPajamaFabric(infoFabric); if (tvSessionId) sendCommand('SELECT_FABRIC', { fabricId: normalizeId(infoFabric.fabricID), garment: 'pajama' }); }
+                                            else if (tab === 'Sadri') { setSelectedSadriFabric(infoFabric); if (tvSessionId) sendCommand('SELECT_FABRIC', { fabricId: normalizeId(infoFabric.fabricID), garment: 'sadri' }); }
+                                            else if (tab === 'Coat') { setSelectedCoatFabric(infoFabric); if (tvSessionId) sendCommand('SELECT_FABRIC', { fabricId: normalizeId(infoFabric.fabricID), garment: 'coat' }); }
+                                            setInfoFabric(null);
+                                            closePanel();
+                                        }}
+                                    >
+                                        <Text style={[styles.infoApplyBtnText, isSelected && { color: '#C8A96A' }]}>
+                                            {isSelected ? 'SELECTED' : 'SELECT FABRIC'}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            })()}
                         </ScrollView>
                     </View>
                 </View>
@@ -2810,15 +2976,18 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
             {infoEmbroidery?.item && (
                 <View style={styles.buttonModalOverlay}>
                     <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setInfoEmbroidery(null)} />
-                    <View style={styles.infoModalContainer}>
-                        <View style={styles.buttonModalHeader}>
-                            <Text style={styles.buttonModalTitle}>Embroidery Info</Text>
-                            <TouchableOpacity onPress={() => setInfoEmbroidery(null)}>
-                                <Text style={styles.closeBtn}>×</Text>
-                            </TouchableOpacity>
+                    <View style={[styles.infoModalContainer, isTabletViewport && { width: '85%', maxHeight: '92%' }]}>
+                        <TouchableOpacity onPress={() => setInfoEmbroidery(null)} style={styles.modalFloatingClose}>
+                            <MaterialIcons name="close" size={22} color="#000000" />
+                        </TouchableOpacity>
+
+                        <View style={styles.panelHeader}>
+                            <Text style={styles.panelTitle}>Embroidery Info</Text>
+                            <View style={styles.panelTitleUnderline} />
                         </View>
+
                         <ScrollView
-                            style={[styles.infoScroll, styles.embInfoScroll]}
+                            style={[styles.infoScroll, isTabletViewport && { maxHeight: 800 }]}
                             contentContainerStyle={styles.infoContent}
                         >
                             {(() => {
@@ -2832,28 +3001,47 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                                     typeof emb.description === 'string' && emb.description.trim().length > 0
                                         ? emb.description.trim()
                                         : '—';
+                                const colorText = Array.isArray(emb.colors) && emb.colors.length > 0
+                                    ? emb.colors.join(', ')
+                                    : (typeof emb.color === 'string' && emb.color.trim().length > 0
+                                        ? emb.color.trim()
+                                        : emb.threadColor || emb.thread_color || '-');
+                                const typeText =
+                                    (typeof emb.type === 'string' && emb.type.trim().length > 0
+                                        ? emb.type.trim()
+                                        : emb.embroideryType || emb.workType || emb.category || '-');
                                 return (
                                     <>
                                         <View style={styles.embInfoCarouselOuter}>
                                             <View style={styles.embInfoHeroWrap}>
-                                                {hero ? (
-                                                    <Image
-                                                        source={hero}
-                                                        style={styles.embInfoHeroImage}
-                                                        resizeMode="cover"
-                                                    />
-                                                ) : (
-                                                    <View
-                                                        style={[
-                                                            styles.embInfoHeroImage,
-                                                            { backgroundColor: '#f0e6d2' },
-                                                        ]}
-                                                    />
-                                                )}
+                                                <TouchableOpacity
+                                                    activeOpacity={0.95}
+                                                    onPress={() => {
+                                                        setFabricViewerImages(slides);
+                                                        setFabricViewerIndex(idx);
+                                                        setIsFabricViewerOpen(true);
+                                                    }}
+                                                >
+                                                    {hero ? (
+                                                        <Image
+                                                            source={hero}
+                                                            style={[styles.embInfoHeroImage, isTabletViewport && { aspectRatio: 1.1 }]}
+                                                            resizeMode="cover"
+                                                        />
+                                                    ) : (
+                                                        <View
+                                                            style={[
+                                                                styles.embInfoHeroImage,
+                                                                { backgroundColor: '#f0e6d2' },
+                                                            ]}
+                                                        />
+                                                    )}
+                                                </TouchableOpacity>
+
                                                 {slides.length > 1 ? (
-                                                    <>
+                                                    <View style={styles.infoImageControlsOverlay} pointerEvents="box-none">
                                                         <TouchableOpacity
-                                                            style={[styles.embInfoNavArrow, styles.embInfoNavArrowLeft]}
+                                                            style={[styles.embInfoNavArrow, styles.embInfoNavArrowLeft, { width: 34, height: 34 }]}
                                                             accessibilityRole="button"
                                                             accessibilityLabel="Previous image"
                                                             hitSlop={{ top: 12, bottom: 12, left: 8, right: 12 }}
@@ -2863,10 +3051,10 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                                                                 )
                                                             }
                                                         >
-                                                            <MaterialIcons name="chevron-left" size={30} color="#0f172a" />
+                                                            <MaterialIcons name="chevron-left" size={24} color="#1D1D1D" />
                                                         </TouchableOpacity>
                                                         <TouchableOpacity
-                                                            style={[styles.embInfoNavArrow, styles.embInfoNavArrowRight]}
+                                                            style={[styles.embInfoNavArrow, styles.embInfoNavArrowRight, { width: 34, height: 34 }]}
                                                             accessibilityRole="button"
                                                             accessibilityLabel="Next image"
                                                             hitSlop={{ top: 12, bottom: 12, left: 12, right: 8 }}
@@ -2874,21 +3062,23 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                                                                 setEmbInfoImageIndex((p) => (p + 1) % slides.length)
                                                             }
                                                         >
-                                                            <MaterialIcons name="chevron-right" size={30} color="#0f172a" />
+                                                            <MaterialIcons name="chevron-right" size={24} color="#1D1D1D" />
                                                         </TouchableOpacity>
-                                                        <View style={styles.embInfoSlideCounter} pointerEvents="none">
-                                                            <View style={styles.embInfoSlideCounterPill}>
-                                                                <Text style={styles.embInfoSlideCounterText}>
-                                                                    {idx + 1}/{slides.length}
-                                                                </Text>
-                                                            </View>
-                                                        </View>
-                                                    </>
+                                                    </View>
                                                 ) : null}
                                             </View>
                                         </View>
-                                        <Text style={styles.embInfoTitle}>{emb.name || 'Embroidery'}</Text>
-                                        <Text style={styles.embInfoDesc}>{desc}</Text>
+
+                                        <View style={[styles.infoDetailsCard, { marginTop: 0 }]}>
+                                            <View style={{ paddingVertical: 12, alignItems: 'center' }}>
+                                                <Text style={[styles.embInfoTitle, { marginBottom: 0 }]}>{emb.name || 'Embroidery Detail'}</Text>
+                                            </View>
+                                            {renderInfoDetailRow('description', 'Description', desc, { multiline: true })}
+                                            {renderInfoDetailRow('palette', 'Color', colorText)}
+                                            {renderInfoDetailRow('style', 'Type', typeText)}
+                                        </View>
+
+
                                     </>
                                 );
                             })()}
@@ -2972,109 +3162,207 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
             {isSummaryOpen && (
                 <View style={styles.buttonModalOverlay}>
                     <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setSummaryOpen(false)} />
-                    <View style={styles.summaryModalContainer}>
-                        <View style={styles.buttonModalHeader}>
-                            <Text style={styles.buttonModalTitle}>Summary</Text>
-                            <TouchableOpacity onPress={() => setSummaryOpen(false)}>
-                                <Text style={styles.closeBtn}>×</Text>
-                            </TouchableOpacity>
+                    <View style={[styles.infoModalContainer, isTabletViewport && { width: '85%', maxHeight: '92%' }]}>
+                        <TouchableOpacity onPress={() => setSummaryOpen(false)} style={styles.modalFloatingClose}>
+                            <MaterialIcons name="close" size={22} color="#000000" />
+                        </TouchableOpacity>
+
+                        <View style={styles.panelHeader}>
+                            <Text style={styles.panelTitle}>Order Summary</Text>
+                            <View style={styles.panelTitleUnderline} />
                         </View>
 
-                        <View style={styles.summaryTabsRow}>
+                        <View style={[styles.summaryTabsRow, { borderBottomColor: '#E8E1D3', backgroundColor: '#FDFBF7' }]}>
                             {summaryTabs.map((tab) => (
                                 <TouchableOpacity
                                     key={tab}
-                                    style={[styles.summaryTabBtn, summaryTab === tab && styles.summaryTabBtnActive]}
+                                    style={[styles.summaryTabBtn, summaryTab === tab && { borderBottomColor: '#C8A96A' }]}
                                     onPress={() => setSummaryTab(tab)}
                                 >
-                                    <Text style={[styles.summaryTabText, summaryTab === tab && styles.summaryTabTextActive]}>{tab}</Text>
+                                    <Text style={[styles.summaryTabText, summaryTab === tab && { color: '#C8A96A', fontWeight: '900' }]}>{tab}</Text>
                                 </TouchableOpacity>
                             ))}
                         </View>
 
-                        <ScrollView style={styles.infoScroll} contentContainerStyle={styles.infoContent}>
-                            <Text style={styles.summarySectionTitle}>Fabric Details</Text>
-                            <View style={styles.infoBrandBanner}>
-                                {(() => {
-                                    const fabric = getSummaryFabricForTab(summaryTab);
-                                    const logoSource = getBrandLogoSource(fabric);
-                                    if (logoSource && isSvgLogoSource(logoSource)) {
+                        <ScrollView 
+                            style={[styles.infoScroll, isTabletViewport && { maxHeight: 800 }]} 
+                            contentContainerStyle={[styles.infoContent, { paddingTop: 10 }]}
+                        >
+                            {!isCostBreakupTab ? (
+                            <View style={[styles.infoDetailsCard, { marginBottom: 16 }]}>
+                                <View style={{ paddingVertical: 10, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: 'rgba(200,169,106,0.2)', marginBottom: 12 }}>
+                                    <Text style={[styles.summarySectionTitle, { marginBottom: 0, color: '#C8A96A' }]}>Fabric Selection</Text>
+                                </View>
+                                
+                                <View style={[styles.infoBrandBanner, { height: 36, marginBottom: 10, borderBottomWidth: 0 }]}>
+                                    {(() => {
+                                        const fabric = getSummaryFabricForTab(summaryTab);
+                                        const logoSource = getBrandLogoSource(fabric);
+                                        if (logoSource && isSvgLogoSource(logoSource)) {
+                                            return (
+                                                <View style={[styles.infoBrandLogo, { width: 110 }]}>
+                                                    <SvgCssUri uri={logoSource.uri} width="100%" height="100%" />
+                                                </View>
+                                            );
+                                        }
+                                        if (logoSource) {
+                                            return (
+                                                <View style={[styles.infoBrandLogo, { width: 110 }]}>
+                                                    <Image source={logoSource} style={{ width: '90%', height: '90%' }} resizeMode="contain" />
+                                                </View>
+                                            );
+                                        }
                                         return (
-                                            <View style={styles.infoBrandLogo}>
-                                                <SvgCssUri uri={logoSource.uri} width="100%" height="100%" />
+                                            <View style={[styles.infoBrandLogoFallback, { width: 110 }]}>
+                                                <Text style={styles.infoBrandLogoFallbackText} numberOfLines={1}>
+                                                    {(getSummaryFabricForTab(summaryTab)?.brand || 'Brand').toUpperCase()}
+                                                </Text>
                                             </View>
                                         );
-                                    }
-                                    if (logoSource) {
-                                        return <Image source={logoSource} style={styles.infoBrandLogo} resizeMode="contain" />;
-                                    }
-                                    return (
-                                        <View style={styles.infoBrandLogoFallback}>
-                                            <Text style={styles.infoBrandLogoFallbackText} numberOfLines={1}>
-                                                {(getSummaryFabricForTab(summaryTab)?.brand || 'Brand').toUpperCase()}
+                                    })()}
+                                    <View style={styles.infoBrandNameWrap}>
+                                        <View style={styles.infoBrandNameViewport}>
+                                            <Text style={styles.infoBrandName} numberOfLines={1}>
+                                                {getSummaryFabricForTab(summaryTab)?.name || '-'}
                                             </Text>
                                         </View>
-                                    );
-                                })()}
-                                <View style={styles.infoBrandNameWrap}>
-                                    <View style={styles.infoBrandNameViewport}>
-                                        <Text style={styles.infoBrandName} numberOfLines={1}>
-                                            {getSummaryFabricForTab(summaryTab)?.name || '-'}
-                                        </Text>
                                     </View>
                                 </View>
                             </View>
+                            ) : null}
 
 
-                            {(() => {
+                            {!isCostBreakupTab ? (() => {
                                 const embroideryImage = getSummaryEmbroideryImage(summaryTab);
                                 const buttonImage = getSummaryButtonImage(summaryTab);
                                 if (!embroideryImage && !buttonImage) return null;
+
+                                // Button Info
+                                const btnObj = summaryTab === 'Sadri' ? selectedSadriButton : summaryTab === 'Coat' ? selectedCoatButton : selectedButton;
+                                const buttonName = btnObj?.name || 'None';
+                                const buttonMaterial = btnObj?.material || '';
+                                
+                                // Embroidery Info
+                                const embId = summaryTab === 'Sadri' ? selections.sadriEmbroideryID : summaryTab === 'Coat' ? selections.coatEmbroideryID : selections.embroideryID;
+                                const embItem = Array.isArray(embroideryCollections) ? embroideryCollections.find(e => e.id === embId) : null;
+                                const embroideryName = (summaryTab === 'Sadri' ? selections.sadriEmbroideryCollection?.name : selections.embroideryCollection?.name) || 'None';
+                                const embroiderySub = (embItem?.name || embItem?.title || '').trim();
+
                                 return (
-                                    <View style={styles.summaryImagesWrap}>
+                                    <View style={[styles.summaryImagesWrap, { marginBottom: 16 }]}>
                                         {buttonImage ? (
-                                            <View style={styles.summaryImageCard}>
-                                                <Image source={buttonImage} style={styles.summaryButtonImage} resizeMode="contain" />
-                                                <Text style={styles.summaryImageCardLabel}>Button</Text>
+                                            <View style={[styles.summaryImageCard, { backgroundColor: '#FFFFFF', padding: 10, borderRadius: 16, borderWidth: 1, borderColor: '#E8E1D3' }]}>
+                                                <Text style={{ fontSize: 10, color: '#C8A96A', fontWeight: '800', marginBottom: 8, textAlign: 'center' }}>BUTTON SELECTION</Text>
+                                                <Image source={buttonImage} style={[styles.summaryButtonImage, { backgroundColor: 'transparent' }]} resizeMode="contain" />
+                                                <Text style={[styles.summaryImageCardLabel, { color: '#C8A96A', fontWeight: '900', marginTop: 10 }]}>{buttonName.toUpperCase()}</Text>
+                                                {buttonMaterial ? <Text style={{ fontSize: 9, color: '#6B5A42', marginTop: 1, fontWeight: '600' }}>{buttonMaterial.toUpperCase()}</Text> : null}
                                             </View>
                                         ) : null}
                                         {embroideryImage ? (
-                                            <View style={styles.summaryImageCard}>
-                                                <Image source={embroideryImage} style={styles.summaryEmbroideryImage} resizeMode="contain" />
-                                                <Text style={styles.summaryImageCardLabel}>Embroidery</Text>
+                                            <View style={[styles.summaryImageCard, { backgroundColor: '#FFFFFF', padding: 10, borderRadius: 16, borderWidth: 1, borderColor: '#E8E1D3' }]}>
+                                                <Text style={{ fontSize: 10, color: '#C8A96A', fontWeight: '800', marginBottom: 8, textAlign: 'center' }}>EMBROIDERY SELECTION</Text>
+                                                <Image source={embroideryImage} style={[styles.summaryEmbroideryImage, { backgroundColor: 'transparent' }]} resizeMode="contain" />
+                                                <Text style={[styles.summaryImageCardLabel, { color: '#C8A96A', fontWeight: '900', marginTop: 10 }]}>{embroideryName.toUpperCase()}</Text>
+                                                {embroiderySub ? <Text style={{ fontSize: 9, color: '#6B5A42', marginTop: 1, fontWeight: '600' }}>{embroiderySub.toUpperCase()}</Text> : null}
                                             </View>
                                         ) : null}
                                     </View>
                                 );
-                            })()}
+                            })() : null}
 
-                            <View style={styles.summaryDivider} />
-                            <Text style={styles.summarySectionTitle}>Style Details</Text>
+                            {!isCostBreakupTab ? (
+                            <View style={[styles.infoDetailsCard, { marginBottom: 20 }]}> 
+                                <View style={{ paddingVertical: 10, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: 'rgba(200,169,106,0.2)', marginBottom: 15 }}>
+                                    <Text style={[styles.summarySectionTitle, { marginBottom: 0, color: '#C8A96A' }]}>Style Specifications</Text>
+                                </View>
 
-                            <View style={styles.summaryStyleGrid}>
-                                {getSummaryStyleItems(summaryTab).map((item) => (
-                                    <View key={item.key} style={styles.summaryStyleItem}>
-                                        {item.Icon ? <item.Icon width={58} height={58} /> : <View style={styles.summaryStyleIconFallback} />}
-                                        <Text style={styles.summaryStyleLabel}>{item.title}</Text>
-                                        <Text style={styles.summaryStyleValue}>{item.label}</Text>
-                                    </View>
-                                ))}
+                                <View style={styles.summaryStyleGrid}>
+                                    {getSummaryStyleItems(summaryTab).map((item) => {
+                                        const SummaryIcon = resolveSvgComponent(item.Icon);
+                                        return (
+                                            <View key={item.key} style={styles.summaryStyleItem}>
+                                                <View style={[styles.infoIconWrap, { width: 44, height: 44, marginBottom: 6, backgroundColor: '#FDFBF7' }]}>
+                                                    {SummaryIcon ? <SummaryIcon width={32} height={32} color="#C8A96A" /> : <MaterialIcons name="settings" size={24} color="#C8A96A" />}
+                                                </View>
+                                                <Text style={[styles.summaryStyleLabel, { color: '#6B5A42', textTransform: 'uppercase' }]}>{item.title}</Text>
+                                                <Text style={[styles.summaryStyleValue, { color: '#1D1D1D', fontWeight: '700' }]}>{item.label}</Text>
+                                            </View>
+                                        );
+                                    })}
+                                </View>
+
+
                             </View>
+                            ) : null}
 
-                            {summaryTab !== 'Pajama' ? (
-                                <View style={styles.summaryMetaCard}>
-                                    <Text style={styles.summaryMetaRow}>
-                                        Button: {summaryTab === 'Sadri'
-                                            ? (selectedSadriButton?.name || 'None')
-                                            : summaryTab === 'Coat'
-                                                ? (selectedCoatButton?.name || 'None')
-                                                : (selectedButton?.name || 'None')}
-                                    </Text>
-                                    <Text style={styles.summaryMetaRow}>
-                                        Embroidery: {summaryTab === 'Sadri'
-                                            ? (selections.sadriEmbroideryCollection?.name || 'None')
-                                            : (selections.embroideryCollection?.name || 'None')}
-                                    </Text>
+                            {isCostBreakupTab ? (
+                                <View style={[styles.infoDetailsCard, { marginBottom: 20, paddingHorizontal: 16, paddingBottom: 20 }]}> 
+                                    <View style={{ paddingVertical: 14, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: 'rgba(200,169,106,0.2)', marginBottom: 15 }}>
+                                        <Text style={[styles.summarySectionTitle, { marginBottom: 2, color: '#C8A96A' }]}>COST BREAKUP</Text>
+                                        <Text style={{ fontSize: 9, color: '#8B7355', letterSpacing: 1.5, fontWeight: '700' }}>ITEMIZED ESTIMATE</Text>
+                                    </View>
+
+                                    {totalDiscount > 0 && (
+                                        <View style={{ backgroundColor: 'rgba(31, 139, 76, 0.08)', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 16, borderLeftWidth: 3, borderLeftColor: '#1F8B4C', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                                            <View>
+                                                <Text style={{ fontSize: 10, color: '#1F8B4C', fontWeight: '800', textTransform: 'uppercase' }}>Exclusive Bespoke Savings</Text>
+                                                <Text style={{ fontSize: 13, color: '#1D1D1D', fontWeight: '900', marginTop: 2 }}>You save {formatInr(totalDiscount)} on this order</Text>
+                                            </View>
+                                            <MaterialIcons name="local-offer" size={20} color="#1F8B4C" />
+                                        </View>
+                                    )}
+
+                                    <View style={[styles.summaryCostTableHeader, { borderBottomColor: 'rgba(200,169,106,0.3)', paddingBottom: 8 }]}>
+                                        <Text style={[styles.summaryCostHeaderText, { flex: 1.3, textAlign: 'left', fontSize: 9 }]}>DESCRIPTION</Text>
+                                        <Text style={[styles.summaryCostHeaderText, { flex: 0.7, fontSize: 9 }]}>MRP</Text>
+                                        <Text style={[styles.summaryCostHeaderText, { flex: 1.5, fontSize: 9 }]}>DISCOUNT</Text>
+                                        <Text style={[styles.summaryCostHeaderText, { flex: 0.7, fontSize: 9 }]}>FINAL</Text>
+                                    </View>
+
+                                    {detailedCostBreakdownRows.map((row) => (
+                                        <View key={row.key} style={[styles.summaryCostTableRow, { borderBottomWidth: 0.5, borderBottomColor: 'rgba(200,169,106,0.1)', paddingVertical: 8 }]}>
+                                            <Text style={[styles.summaryCostLabel, { flex: 1.3, fontSize: 10, paddingRight: 4 }]} numberOfLines={1}>{row.label}</Text>
+                                            <Text style={[styles.summaryCostValue, { flex: 0.7, fontSize: 10, color: '#8B7355', fontWeight: '600' }]}>{formatInr(row.mrp)}</Text>
+                                            <Text 
+                                                style={[styles.summaryCostDiscount, { flex: 1.5, fontSize: 10, color: row.discountAmount > 0 ? '#15803d' : '#94a3b8' }]}
+                                                numberOfLines={1}
+                                                adjustsFontSizeToFit
+                                            >
+                                                {row.discountAmount > 0 ? `- ${formatInr(row.discountAmount)} (${formatPercent(row.discountPercent)})` : '—'}
+                                            </Text>
+                                            <Text style={[styles.summaryCostValue, { flex: 0.7, fontSize: 10 }]}>{formatInr(row.finalPrice)}</Text>
+                                        </View>
+                                    ))}
+
+                                    <View style={{ marginTop: 15, backgroundColor: '#FDFBF7', borderRadius: 12, padding: 15, borderWidth: 1, borderColor: '#E8E1D3' }}>
+                                        <View style={[styles.summaryCostRow, { marginBottom: 6 }]}>
+                                            <Text style={[styles.summaryCostLabel, { fontSize: 13, color: '#8B7355' }]}>GROSS TOTAL</Text>
+                                            <Text style={[styles.summaryCostValue, { fontSize: 13, color: '#8B7355' }]}>{formatInr(subtotalBeforeDiscount)}</Text>
+                                        </View>
+
+                                        <View style={[styles.summaryCostRow, { marginBottom: 12 }]}>
+                                            <Text style={[styles.summaryCostLabel, { fontSize: 13, color: '#15803d' }]}>TOTAL SAVINGS</Text>
+                                            <Text style={[styles.summaryCostDiscount, { fontSize: 13, color: '#15803d' }]}>- {formatInr(totalDiscount)}</Text>
+                                        </View>
+
+                                        <View style={{ height: 1, backgroundColor: 'rgba(200,169,106,0.2)', marginBottom: 12 }} />
+
+                                        <View style={[styles.summaryCostRow, { paddingVertical: 0 }]}>
+                                            <View>
+                                                <Text style={[styles.summaryCostTotalLabel, { fontSize: 11, color: '#8B7355', marginBottom: 2 }]}>NET PAYABLE AMOUNT</Text>
+                                                <Text style={[styles.summaryCostTotalValue, { fontSize: 22, color: '#C8A96A' }]}>{formatInr(totalPrice)}</Text>
+                                            </View>
+                                            <View style={{ backgroundColor: '#C8A96A', width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' }}>
+                                                <MaterialIcons name="account-balance-wallet" size={22} color="#FFFFFF" />
+                                            </View>
+                                        </View>
+                                    </View>
+                                    
+                                    <View style={{ marginTop: 16, alignItems: 'center' }}>
+                                        <Text style={{ fontSize: 10, color: '#94a3b8', fontStyle: 'italic', textAlign: 'center' }}>
+                                            * Prices are inclusive of all taxes and bespoke tailoring charges.
+                                        </Text>
+                                    </View>
                                 </View>
                             ) : null}
                         </ScrollView>
@@ -3140,7 +3428,7 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                         <View style={styles.priceBlock}>
                             <Text style={styles.productName} numberOfLines={1}>Custom kurta set</Text>
                             <Text style={styles.price} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>
-                                ₹ {totalPrice.toLocaleString('en-IN')}
+                                ₹ {Math.round(totalPrice).toLocaleString('en-IN')}
                             </Text>
                             <Text style={styles.estDelivery} numberOfLines={1} adjustsFontSizeToFit>
                                 {estimatedDeliveryLabel}
@@ -3152,7 +3440,12 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                             onPress={() => alert('Measurements Screen!')}
                         >
                             <Text style={styles.checkoutText}>Lets Dress Up</Text>
-                            <Text style={styles.checkoutChevron}>›</Text>
+                            <MaterialIcons
+                                name="chevron-right"
+                                size={22}
+                                color="#C8A96A"
+                                style={styles.checkoutChevronIcon}
+                            />
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -3323,8 +3616,8 @@ const styles = StyleSheet.create({
     backText: { fontSize: 18, fontWeight: 'bold', color: CustomTheme.textBrand, zIndex: 2 },
     brandText: { fontSize: 24, fontWeight: 'bold', letterSpacing: 2, color: CustomTheme.textBrand },
     rightMenu: { position: 'absolute', right: 20, top: 0, bottom: 84, zIndex: 100, alignItems: 'center', justifyContent: 'center' },
-    iconButton: { width: 54, height: 54, backgroundColor: '#F5F1E8', borderWidth: 0.5, borderColor: '#000000', borderRadius: 6, justifyContent: 'center', alignItems: 'center', marginBottom: 20, shadowColor: CustomTheme.shadowDark, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 8, overflow: 'hidden' },
-    iconButtonActive: { backgroundColor: '#FFFFFF', borderWidth: 2.5, borderColor: CustomTheme.accentGold, shadowColor: CustomTheme.accentGold, shadowOpacity: 0.4, shadowRadius: 10, elevation: 10 },
+    iconButton: { width: 50, height: 50, backgroundColor: '#F6F4EF', borderWidth: 0.5, borderColor: '#000000', borderRadius: 4, justifyContent: 'center', alignItems: 'center', marginBottom: 15, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 4, overflow: 'visible' },
+    iconButtonActive: { backgroundColor: '#C8A96A', borderWidth: 0, shadowColor: 'rgba(0,0,0,0.3)', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 1, shadowRadius: 10, elevation: 10 },
     iconText: { fontSize: 11, color: CustomTheme.textBrand, fontWeight: 'bold', textAlign: 'center', zIndex: 2 },
     extrasTray: { alignItems: 'center' },
     extrasTrayFloating: {
@@ -3333,61 +3626,101 @@ const styles = StyleSheet.create({
         marginBottom: 10,
     },
     extrasTraySlot: {
-        width: 54,
-        height: 54,
+        width: 50,
+        height: 50,
         marginBottom: 10,
-        borderRadius: 6,
+        borderRadius: 4,
         overflow: 'hidden',
         borderWidth: 0.5,
         borderColor: '#000000',
-        backgroundColor: '#F5F1E8',
+        backgroundColor: '#F6F4EF',
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: CustomTheme.shadowDark,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 3,
+        elevation: 3,
     },
     extrasTraySlotLabel: {
-        marginTop: 2,
-        fontSize: 10,
-        fontWeight: '700',
-        color: CustomTheme.textBrand,
+        marginTop: 1,
+        fontSize: 9,
+        fontWeight: '900',
+        color: '#1D1D1D',
         textAlign: 'center',
+        textTransform: 'uppercase',
     },
     extrasTrayAnchor: { marginTop: 2 },
     overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'transparent', zIndex: 20 },
     overlayDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'transparent' },
-    sidePanel: { position: 'absolute', left: 0, top: 0, bottom: 84, backgroundColor: '#FDFBF7', borderWidth: 1, borderColor: '#e5e7eb', zIndex: 5000, elevation: 5000, paddingTop: 18, shadowColor: CustomTheme.shadowDark, shadowOffset: { width: 5, height: 0 }, shadowOpacity: 0.1, shadowRadius: 15, borderTopRightRadius: 0, borderBottomRightRadius: 0, overflow: 'hidden' },
-    panelHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 25, marginBottom: 10, marginTop: -10 },
-    panelTitle: { fontSize: 20, fontWeight: 'bold', color: CustomTheme.textBrand },
+    sidePanel: { position: 'absolute', left: 0, top: 0, bottom: 84, backgroundColor: '#FDFBF7', borderWidth: 1, borderColor: '#e5e7eb', zIndex: 5000, elevation: 5000, paddingTop: 12, shadowColor: CustomTheme.shadowDark, shadowOffset: { width: 5, height: 0 }, shadowOpacity: 0.1, shadowRadius: 15, borderTopRightRadius: 0, borderBottomRightRadius: 0, overflow: 'hidden' },
+    panelHeader: { paddingHorizontal: 25, marginBottom: 8, marginTop: 4, alignItems: 'center' },
+    panelTitle: {
+        fontSize: 18,
+        fontWeight: '900',
+        color: CustomTheme.textBrand,
+        textTransform: 'uppercase',
+        letterSpacing: 2.5
+    },
+    panelTitleUnderline: {
+        width: 40,
+        height: 3,
+        backgroundColor: CustomTheme.accentGold,
+        marginTop: 4,
+        borderRadius: 2,
+    },
     closeBtn: { fontSize: 24, color: CustomTheme.accentGold, padding: 10 },
+    sidePanelCloseBtn: {
+        position: 'absolute',
+        right: -48,
+        top: 20,
+        backgroundColor: '#FFFFFF',
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        justifyContent: 'center',
+        alignItems: 'center',
+        elevation: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 4, height: 0 },
+        shadowOpacity: 0.15,
+        shadowRadius: 6,
+    },
     panelContentArea: { flex: 1 },
     panelContent: { fontSize: 16, color: '#666', paddingHorizontal: 20 },
-    gridContainer: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 15, justifyContent: 'center', paddingBottom: 20 },
+    gridContainer: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 15, justifyContent: 'center', paddingBottom: 20, paddingTop: 14 },
     fabricCard: {
         width: '100%',
-        backgroundColor: '#F5F1E8',
-        borderRadius: 4,
-        marginBottom: 16,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 5, // ⬅️ smooth premium corners
+        marginBottom: 18,
         overflow: 'hidden',
+
         borderWidth: 0.5,
-        borderColor: '#000000',
+        borderColor: '#000000ff', // softer gold-beige
+
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 5,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+
         elevation: 3,
     },
+
     fabricCardActive: {
-        borderColor: CustomTheme.accentGold,
-        borderWidth: 2.5,
-        backgroundColor: '#FFFFFF',
-        shadowColor: CustomTheme.accentGold,
+        borderColor: '#C8A96A',
+        borderWidth: 2,
+
+        backgroundColor: '#FFF9EC',
+
+        transform: [{ scale: 1.02 }],
+
+        shadowColor: '#C8A96A',
+        shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.25,
-        shadowRadius: 8,
-        elevation: 6,
+        shadowRadius: 18,
+
+        elevation: 10,
     },
     fabricImage: {
         width: '100%',
@@ -3418,15 +3751,38 @@ const styles = StyleSheet.create({
     fabricName: {
         fontSize: 13,
         fontWeight: '900',
-        color: '#000000',
+        color: '#1D1D1D',
         textTransform: 'uppercase',
-        letterSpacing: 0.5,
+        letterSpacing: 1.2,
     },
     fabricBrand: {
         fontSize: 11,
-        color: CustomTheme.accentGold,
-        marginTop: 2,
-        fontWeight: '700',
+        color: '#C8A96A',
+        marginTop: 4,
+        fontWeight: '800',
+        letterSpacing: 0.8,
+    },
+    fabricPriceBadge: {
+        position: 'absolute',
+        top: 6,
+        right: 6,
+        backgroundColor: 'rgba(255, 255, 255, 0.92)',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 5,
+        borderWidth: 0.5,
+        borderColor: 'rgba(200, 169, 106, 0.3)',
+        zIndex: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        elevation: 3,
+    },
+    fabricPrice: {
+        fontSize: 10,
+        color: '#C8A96A',
+        fontWeight: '900',
     },
     sectionTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 10, color: CustomTheme.textBrand },
     optionRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
@@ -3439,17 +3795,17 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         width: '100%',
-        minHeight: 92,
-        paddingTop: 14,
-        paddingHorizontal: 16,
+        minHeight: 70,
+        paddingTop: 12,
+        paddingHorizontal: 20,
         zIndex: 10000,
         overflow: 'hidden',
-        borderTopWidth: 1,
-        borderTopColor: '#e5e7eb',
+        borderTopWidth: 0.5,
+        borderTopColor: '#000000',
         backgroundColor: '#FDFBF7',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: -6 },
-        shadowOpacity: 0.07,
+        shadowOffset: { width: 0, height: -10 },
+        shadowOpacity: 0.05,
         shadowRadius: 20,
         elevation: 10000,
     },
@@ -3470,26 +3826,27 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     productName: {
-        fontSize: 13,
+        fontSize: 12,
         fontWeight: '900',
-        color: '#9B7642',
-        marginBottom: 2,
-        letterSpacing: 1,
+        color: '#C8A96A', // Gold
+        marginBottom: 1,
+        letterSpacing: 1.5,
         textTransform: 'uppercase',
     },
     price: {
-        fontSize: 24,
+        fontSize: 28,
         fontWeight: '900',
         color: '#000000',
-        letterSpacing: -0.5,
+        letterSpacing: -1,
     },
     estDelivery: {
-        fontSize: 11,
-        color: '#9B7642',
-        marginTop: 4,
+        fontSize: 11.5,
+        color: '#64748b', // Slate Gray for secondary info
+        marginTop: 2,
         fontWeight: '700',
-        letterSpacing: 0.2,
-        lineHeight: 13,
+        letterSpacing: 0.5,
+        lineHeight: 16,
+        textTransform: 'uppercase',
     },
     checkoutBtn: {
         flexShrink: 0,
@@ -3497,30 +3854,48 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: '#000000',
-        paddingVertical: 12,
-        paddingHorizontal: 22,
-        borderRadius: 14,
+        paddingVertical: 14,
+        paddingHorizontal: 28,
+        borderRadius: 4, // Sharp boxes
         borderWidth: 1,
         borderColor: '#000000',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 8,
-        maxWidth: 160,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.25,
+        shadowRadius: 10,
+        elevation: 10,
+        maxWidth: 180,
     },
     checkoutBtnTablet: {
-        maxWidth: 220,
-        paddingHorizontal: 60
+        maxWidth: 320,
+        minWidth: 260,
+        paddingHorizontal: 40
     },
-    checkoutText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800', letterSpacing: 0.4 },
-    checkoutChevron: { color: '#FFFFFF', fontSize: 18, fontWeight: '800', marginLeft: 2, marginTop: -1 },
+    checkoutText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900', letterSpacing: 1.5, textTransform: 'uppercase' },
+    checkoutChevronIcon: { marginLeft: 4, marginTop: -1 },
 
     // Fabric Tab Switcher
-    fabricSwitcher: { flexDirection: 'row', marginHorizontal: 15, marginTop: 10, marginBottom: 8, backgroundColor: '#F5F1E8', borderRadius: 6, padding: 3, borderWidth: 1, borderColor: '#EBE6D9' },
-    fabricSwitcherTab: { flex: 1, paddingVertical: 7, borderRadius: 4, alignItems: 'center' },
-    fabricSwitcherTabActive: { backgroundColor: CustomTheme.accentGold },
-    fabricSwitcherText: { fontSize: 13, fontWeight: 'bold', color: '#000000' },
+    fabricSwitcher: {
+        flexDirection: 'row',
+        marginHorizontal: 15,
+        marginTop: 10,
+        marginBottom: 12,
+        backgroundColor: '#F5F1E8',
+        borderRadius: 4,
+        padding: 4,
+        borderWidth: 1,
+        borderColor: '#D8CDB5'
+    },
+    fabricSwitcherTab: { flex: 1, paddingVertical: 10, borderRadius: 2, alignItems: 'center' },
+    fabricSwitcherTabActive: {
+        backgroundColor: '#C8A96A',
+        shadowColor: '#000',
+        shadowOpacity: 0.2,
+        shadowRadius: 5,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 4,
+    },
+    fabricSwitcherText: { fontSize: 12, fontWeight: '900', color: '#1D1D1D', letterSpacing: 1 },
 
     // Search & Filter
     searchFilterContainer: {
@@ -3534,30 +3909,30 @@ const styles = StyleSheet.create({
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#F5F1E8',
-        borderRadius: 8,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 4,
         paddingHorizontal: 12,
-        height: 44,
-        borderWidth: 0.5,
-        borderColor: '#EBE6D9',
+        height: 50,
+        borderWidth: 1.5,
+        borderColor: '#D8CDB5', // Gold-ish border
     },
     searchInput: {
         flex: 1,
         fontSize: 14,
-        color: '#000',
+        color: '#1D1D1D',
         paddingVertical: 8,
-        fontWeight: '500',
-        letterSpacing: -0.2,
+        fontWeight: '700',
+        letterSpacing: 0.2,
     },
     filterBtn: {
-        width: 44,
-        height: 44,
-        backgroundColor: '#F5F1E8',
-        borderRadius: 8,
+        width: 50,
+        height: 50,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 4,
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 0.5,
-        borderColor: '#EBE6D9',
+        borderWidth: 1.5,
+        borderColor: '#D8CDB5',
     },
 
     // Button UI Styles
@@ -3581,17 +3956,34 @@ const styles = StyleSheet.create({
     buttonItemName: { fontSize: 13, fontWeight: 'bold', color: CustomTheme.textBrand, textAlign: 'center' },
     recommendedBadge: { fontSize: 9, color: CustomTheme.accentGold, fontWeight: 'bold', marginTop: 2 },
     infoModalContainer: {
-        width: '88%',
-        maxHeight: '80%',
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#dbe3ee',
-        shadowColor: '#0f172a',
-        shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.15,
-        shadowRadius: 24,
+        width: '90%',
+        maxHeight: '82%',
+        backgroundColor: '#FDFBF7',
+        borderRadius: 24,
+        borderWidth: 1.5,
+        borderColor: '#E8E1D3',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 15 },
+        shadowOpacity: 0.25,
+        shadowRadius: 25,
+        elevation: 20,
+        overflow: 'hidden',
+    },
+    modalFloatingClose: {
+        position: 'absolute',
+        right: 16,
+        top: 16,
+        backgroundColor: '#FFFFFF',
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 100,
         elevation: 10,
+        shadowColor: '#000',
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
     },
     infoScroll: {
         maxHeight: 460,
@@ -3655,7 +4047,7 @@ const styles = StyleSheet.create({
     },
     embInfoHeroImage: {
         width: '100%',
-        aspectRatio: 4 / 5,
+        aspectRatio: 0.9,
         backgroundColor: '#f1f5f9',
     },
     embInfoTitle: {
@@ -3679,37 +4071,39 @@ const styles = StyleSheet.create({
     },
     infoBrandBanner: {
         flexDirection: 'row',
-        alignSelf: 'flex-start',
-        height: 36,
+        alignSelf: 'center',
+        height: 44,
+        borderRadius: 8,
         overflow: 'hidden',
         backgroundColor: 'transparent',
+        borderWidth: 1.2,
+        borderColor: '#E8E1D3',
+        marginBottom: 12,
     },
     infoBrandLogo: {
-        width: 132,
+        width: 140,
         height: '100%',
-        backgroundColor: '#ffffff',
+        backgroundColor: 'transparent',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingHorizontal: 0,
-        paddingVertical: 0,
     },
     infoBrandLogoFallback: {
-        width: 132,
+        width: 120,
         height: '100%',
-        backgroundColor: '#ef4444',
+        backgroundColor: '#1D1D1D',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingHorizontal: 8,
+        paddingHorizontal: 12,
     },
     infoBrandLogoFallbackText: {
-        color: '#ffffff',
-        fontSize: 12,
-        fontWeight: '800',
-        letterSpacing: 0.3,
+        color: '#FFFFFF',
+        fontSize: 11,
+        fontWeight: '900',
+        letterSpacing: 1,
     },
     infoBrandNameWrap: {
-        width: 147,
-        backgroundColor: '#e5e5e5',
+        width: 150,
+        backgroundColor: '#FFF9EC',
         alignItems: 'center',
         justifyContent: 'center',
         paddingHorizontal: 16,
@@ -3720,10 +4114,9 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
     },
     infoBrandName: {
-        fontSize: 12,
+        fontSize: 11,
         fontWeight: '800',
-        color: 'black',
-        alignSelf: 'flex-end',
+        color: '#C8A96A',
         textAlign: 'center',
     },
     infoSubTitle: {
@@ -3735,12 +4128,27 @@ const styles = StyleSheet.create({
     },
     infoImage: {
         width: '100%',
-        height: 168,
-        borderRadius: 12,
+        height: 300,
         backgroundColor: '#f1f5f9',
     },
+    infoImageControlsOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        zIndex: 5,
+    },
     infoImageWrap: {
-        marginBottom: 14,
+        marginBottom: 20,
+        borderRadius: 20,
+        overflow: 'hidden',
+        borderWidth: 1.5,
+        borderColor: '#E8E1D3',
+        shadowColor: '#000',
+        shadowOpacity: 0.12,
+        shadowRadius: 12,
+        elevation: 8,
     },
     infoImageControls: {
         marginTop: 10,
@@ -3771,69 +4179,87 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     infoDetailsCard: {
-        marginTop: 2,
-        backgroundColor: '#f8fafc',
-        borderRadius: 12,
-        paddingVertical: 8,
-        paddingHorizontal: 10,
+        marginTop: 4,
+        backgroundColor: '#FFFBF5',
+        borderRadius: 16,
+        paddingVertical: 12,
+        paddingHorizontal: 14,
         borderWidth: 1,
-        borderColor: '#e2e8f0',
+        borderColor: '#E8DCC8',
     },
     infoRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingVertical: 8,
-        paddingHorizontal: 2,
+        paddingVertical: 10,
         borderBottomWidth: 1,
-        borderBottomColor: '#e5e7eb',
+        borderBottomColor: 'rgba(232, 220, 200, 0.4)',
     },
     infoRowMultiline: {
-        alignItems: 'flex-start',
         flexDirection: 'column',
-        justifyContent: 'flex-start',
-        gap: 6,
+        alignItems: 'flex-start',
     },
     infoRowLeft: {
         flexDirection: 'row',
         alignItems: 'center',
         width: '44%',
-        minWidth: 116,
         paddingRight: 10,
     },
     infoRowLeftMultiline: {
         width: '100%',
-        minWidth: 0,
         paddingRight: 0,
+        marginBottom: 6,
     },
     infoIconWrap: {
-        width: 24,
-        height: 24,
-        borderRadius: 12,
-        backgroundColor: '#e2e8f0',
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        backgroundColor: '#FFF2D9',
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: 8,
+        marginRight: 10,
     },
     infoLabel: {
-        fontSize: 12,
-        color: '#475569',
-        fontWeight: '700',
+        fontSize: 11,
+        color: '#6B5A42',
+        fontWeight: '800',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
     },
     infoValue: {
         flex: 1,
         textAlign: 'right',
-        fontSize: 12,
-        color: '#14213D',
-        fontWeight: '600',
-        lineHeight: 17,
+        fontSize: 13,
+        color: '#1D1D1D',
+        fontWeight: '700',
     },
     infoValueMultiline: {
         width: '100%',
         textAlign: 'left',
         flex: 0,
-        fontSize: 13,
-        lineHeight: 20,
+        fontSize: 14,
+        lineHeight: 22,
+        color: '#333',
+    },
+    infoApplyBtn: {
+        backgroundColor: '#1D1D1D',
+        paddingVertical: 15,
+        borderRadius: 14,
+        alignItems: 'center',
+        marginTop: 25,
+        borderWidth: 1.5,
+        borderColor: '#C8A96A',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 6,
+    },
+    infoApplyBtnText: {
+        color: '#FFFFFF',
+        fontSize: 14,
+        fontWeight: '900',
+        textTransform: 'uppercase',
+        letterSpacing: 2,
     },
     infoLinkBtn: {
         marginTop: 14,
@@ -3900,28 +4326,31 @@ const styles = StyleSheet.create({
     summaryTabsRow: {
         flexDirection: 'row',
         borderBottomWidth: 1,
-        borderColor: '#e5e7eb',
-        paddingHorizontal: 14,
-        paddingTop: 6,
-        gap: 10,
+        borderBottomColor: '#E8E1D3',
+        paddingHorizontal: 16,
+        paddingTop: 8,
+        backgroundColor: '#FDFBF7',
+        gap: 12,
     },
     summaryTabBtn: {
-        paddingVertical: 8,
-        paddingHorizontal: 12,
+        paddingVertical: 10,
+        paddingHorizontal: 4,
         borderBottomWidth: 2,
         borderBottomColor: 'transparent',
     },
     summaryTabBtnActive: {
-        borderBottomColor: '#14213D',
+        borderBottomColor: '#C8A96A',
     },
     summaryTabText: {
-        fontSize: 14,
-        color: '#64748b',
-        fontWeight: '600',
+        fontSize: 11,
+        color: '#8B7355',
+        fontWeight: '700',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
     },
     summaryTabTextActive: {
-        color: '#14213D',
-        fontWeight: '800',
+        color: '#C8A96A',
+        fontWeight: '900',
     },
     summarySectionTitle: {
         marginTop: 4,
@@ -4011,6 +4440,84 @@ const styles = StyleSheet.create({
         color: '#1f2937',
         fontWeight: '600',
         marginBottom: 6,
+    },
+    summaryCostRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 5,
+    },
+    summaryCostTableHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingBottom: 8,
+        marginBottom: 2,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(200,169,106,0.22)',
+    },
+    summaryCostTableRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 6,
+    },
+    summaryCostHeaderText: {
+        flex: 1,
+        fontSize: 10,
+        color: '#8B7355',
+        fontWeight: '800',
+        textTransform: 'uppercase',
+        textAlign: 'right',
+        letterSpacing: 0.5,
+    },
+    summaryCostHeaderItem: {
+        flex: 1.6,
+        textAlign: 'left',
+    },
+    summaryCostLabel: {
+        flex: 1.6,
+        fontSize: 12,
+        color: '#6B5A42',
+        fontWeight: '700',
+    },
+    summaryCostItemCell: {
+        paddingRight: 8,
+    },
+    summaryCostValue: {
+        fontSize: 12,
+        color: '#1D1D1D',
+        fontWeight: '800',
+        textAlign: 'right',
+    },
+    summaryCostDiscount: {
+        fontSize: 12,
+        color: '#15803d',
+        fontWeight: '900',
+        textAlign: 'right',
+    },
+    summaryCostDivider: {
+        borderTopWidth: 1,
+        borderTopColor: '#E8E1D3',
+        marginVertical: 8,
+    },
+    summaryCostRowTotal: {
+        marginTop: 4,
+        paddingTop: 8,
+        borderTopWidth: 1,
+        borderTopColor: '#E8E1D3',
+    },
+    summaryCostTotalLabel: {
+        fontSize: 13,
+        color: '#1D1D1D',
+        fontWeight: '900',
+        textTransform: 'uppercase',
+        letterSpacing: 0.4,
+    },
+    summaryCostTotalValue: {
+        fontSize: 20,
+        color: '#C8A96A',
+        fontWeight: '900',
     },
     viewerOverlay: {
         flex: 1,

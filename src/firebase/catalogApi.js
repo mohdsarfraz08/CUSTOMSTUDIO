@@ -118,6 +118,89 @@ function readFabricPrice(data) {
   return 0;
 }
 
+export function readEmbroideryPrice(data) {
+  if (!data || typeof data !== 'object') return 0;
+  const directKeys = [
+    'price',
+    'Price',
+    'embroideryPrice',
+    'collectionPrice',
+    'amount',
+    'Amount',
+    'salePrice',
+    'sellingPrice',
+    'finalPrice',
+    'offerPrice',
+    'rate',
+    'Rate',
+    'mrp',
+    'MRP',
+    'cost',
+    'Cost',
+  ];
+  for (const key of directKeys) {
+    if (data[key] != null) {
+      const n = parseMoney(data[key]);
+      if (n > 0) return n;
+    }
+  }
+  const nested = [data.pricing, data.priceInfo, data.meta, data.payment];
+  for (const obj of nested) {
+    if (!obj || typeof obj !== 'object') continue;
+    for (const key of directKeys) {
+      if (obj[key] != null) {
+        const n = parseMoney(obj[key]);
+        if (n > 0) return n;
+      }
+    }
+  }
+  return 0;
+}
+
+function readDiscountValue(data) {
+  if (!data || typeof data !== 'object') return 0;
+  const keys = ['discountAmount', 'discount_value', 'discountValue', 'discount', 'off', 'discountPercent'];
+  for (const key of keys) {
+    if (data[key] != null) {
+      const n = parseMoney(data[key]);
+      if (n > 0) return n;
+    }
+  }
+  const nested = [data.pricing, data.priceInfo, data.meta];
+  for (const obj of nested) {
+    if (!obj || typeof obj !== 'object') continue;
+    for (const key of keys) {
+      if (obj[key] != null) {
+        const n = parseMoney(obj[key]);
+        if (n > 0) return n;
+      }
+    }
+  }
+  return 0;
+}
+
+function readOriginalPrice(data) {
+  if (!data || typeof data !== 'object') return 0;
+  const keys = ['mrp', 'MRP', 'originalPrice', 'listPrice', 'compareAtPrice'];
+  for (const key of keys) {
+    if (data[key] != null) {
+      const n = parseMoney(data[key]);
+      if (n > 0) return n;
+    }
+  }
+  const nested = [data.pricing, data.priceInfo, data.meta];
+  for (const obj of nested) {
+    if (!obj || typeof obj !== 'object') continue;
+    for (const key of keys) {
+      if (obj[key] != null) {
+        const n = parseMoney(obj[key]);
+        if (n > 0) return n;
+      }
+    }
+  }
+  return 0;
+}
+
 /**
  * Layer doc id → React Native image source `{ uri }`.
  * @param {import('firebase/firestore').Firestore} db
@@ -337,6 +420,9 @@ export async function fetchKurtaFabricDocuments(db) {
  */
 export function mapFabricDocToProfile(docSnap, localFallbackThumb) {
   const d = docSnap.data() || {};
+  const price = readFabricPrice(d);
+  const discount = readDiscountValue(d);
+  const mrp = readOriginalPrice(d);
   const fabricID = normalizeFabricKey(d.fabricID != null ? d.fabricID : docSnap.id);
   /** Website `sel.fabric.Kurta.id` — field often named `id`; some exports use `ID` / `doc`. */
   const rawId = d.id ?? d.ID ?? d.Id;
@@ -421,7 +507,10 @@ export function mapFabricDocToProfile(docSnap, localFallbackThumb) {
     width: d.width || '',
     weight: d.weight || '',
     stock: d.stock ?? 0,
-    price: readFabricPrice(d),
+    price,
+    mrp,
+    MRP: mrp,
+    discount,
     src: typeof d.src === 'string' ? d.src : typeof d.fabricImg === 'string' ? d.fabricImg : '',
     fabricImg: typeof d.fabricImg === 'string' ? d.fabricImg : typeof d.src === 'string' ? d.src : '',
     imageList,
@@ -748,6 +837,7 @@ export async function fetchEmbroideryRendersForStyleId(
     const isCollection = Boolean(
       fallbackMeta.isCollection || (Array.isArray(data.values) && data.values.length > 0)
     );
+    const price = readEmbroideryPrice(data);
     bundle.uploadsByDocId[docId] = {
       ...docBundle,
       docId,
@@ -759,6 +849,7 @@ export async function fetchEmbroideryRendersForStyleId(
       name: data.name || docId,
       refPath: data.refPath || fallbackMeta.refPath || '',
       values: Array.isArray(data.values) ? data.values : [],
+      price,
       isCollection,
     };
 
@@ -973,6 +1064,34 @@ function matchingUploadedCollectionValues(data, sid, panelMode, bucketName) {
   });
 }
 
+function collectionValueSelectionTypeKey(value) {
+  const targetType = normalizeEmbroideryLookupKey(value?.targetType);
+  const targetPart = normalizeEmbroideryLookupKey(value?.targetPart);
+  if (targetType && targetPart) return `${targetType}_${targetPart}`;
+  return normalizeEmbroideryLookupKey(value?.type);
+}
+
+function collectionRenderPriceTotal(values, renderBundle) {
+  if (!Array.isArray(values) || values.length === 0) return 0;
+  const bySelectionKey = renderBundle?.uploadsBySelectionKey || {};
+  const seen = new Set();
+  let total = 0;
+
+  values.forEach((value) => {
+    const typeKey = collectionValueSelectionTypeKey(value);
+    const id = normalizeEmbroideryLookupKey(value?.id);
+    if (!typeKey || !id) return;
+    const selectionKey = makeEmbroiderySelectionKey(typeKey, id);
+    if (!selectionKey || seen.has(selectionKey)) return;
+    seen.add(selectionKey);
+    const uploadDoc = bySelectionKey[selectionKey];
+    if (!uploadDoc) return;
+    total += readEmbroideryPrice(uploadDoc);
+  });
+
+  return total;
+}
+
 /**
  * Admin embroidery “collection” cards for one style id (`Embroidery_collection.jsx` list when a style is opened).
  */
@@ -987,7 +1106,9 @@ export async function fetchEmbroideryUploadedCollectionsForStyleId(db, styleId, 
     return embroideryUploadedCollectionsCache.get(cacheKey);
   }
 
-  const loadPromise = Promise.all(EMBROIDERY_UPLOAD_COLLECTIONS.map(async (entry) => {
+  const loadPromise = (async () => {
+    const renderBundle = await fetchEmbroideryRendersForStyleId(db, sid);
+    const groups = await Promise.all(EMBROIDERY_UPLOAD_COLLECTIONS.map(async (entry) => {
     const { value, label, category, garmentType } = entry;
     let snap;
     try {
@@ -1008,7 +1129,9 @@ export async function fetchEmbroideryUploadedCollectionsForStyleId(db, styleId, 
       const vals = matchingUploadedCollectionValues(data, sid, panelMode, value);
       const thumb =
         (typeof data.src === 'string' && data.src.length > 0 && data.src) || readSrcField(data);
-      const price = parseMoney(data.price ?? data.Price);
+      const configuredPrice = readEmbroideryPrice(data);
+      const linkedRenderPrice = collectionRenderPriceTotal(vals, renderBundle);
+      const price = linkedRenderPrice > 0 ? linkedRenderPrice : configuredPrice;
       const resolvedCategory = normalizeEmbroideryLookupKey(data.targetCategory || category);
       const resolvedGarmentType = normalizeEmbroideryLookupKey(data.targetType || garmentType);
 
@@ -1027,11 +1150,11 @@ export async function fetchEmbroideryUploadedCollectionsForStyleId(db, styleId, 
       });
     }
     return matches;
-  })).then((groups) => {
+  }));
     const out = groups.flat();
     out.sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { sensitivity: 'base' }));
     return out;
-  }).catch((error) => {
+  })().catch((error) => {
     embroideryUploadedCollectionsCache.delete(cacheKey);
     throw error;
   });

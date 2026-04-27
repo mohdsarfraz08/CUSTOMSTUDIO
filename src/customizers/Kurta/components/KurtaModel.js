@@ -73,7 +73,6 @@ const CRITICAL_FABRIC_PARTS = new Set([
     'Placket',
     'Sleeve',
     'Collar',
-    'Cuff',
 ]);
 
 const isCriticalLayer = (layerObj) => {

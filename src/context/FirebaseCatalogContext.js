@@ -22,6 +22,7 @@ import {
   fetchEmbroideryStyleDocuments,
   fetchEmbroideryRendersForStyleId,
   mergeEmbroideryRenderMaps,
+  readEmbroideryPrice,
 } from '../firebase/catalogApi';
 import { KURTA_COAT_TUX_KEY } from '../customizers/Kurta/components/KurtaCoatTux';
 import {
@@ -80,6 +81,46 @@ function embroideryExtraProfileUris(data) {
   addVal(data.secondaryImage);
   addVal(data.altImage);
   return out;
+}
+
+const EMBROIDERY_TYPE_LABELS = {
+  machine: 'Machine work',
+  handwork: 'Handwork',
+  mix: 'Hand & Machine Mix',
+};
+
+function normalizeEmbroideryType(raw) {
+  if (typeof raw !== 'string') return { key: '', label: '' };
+  const key = raw.trim().toLowerCase();
+  if (!key) return { key: '', label: '' };
+  return {
+    key,
+    label: EMBROIDERY_TYPE_LABELS[key] || raw.trim(),
+  };
+}
+
+function normalizeEmbroideryColorLabel(value) {
+  return String(value || '')
+    .trim()
+    .split(' ')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
+}
+
+function parseEmbroideryColors(data) {
+  if (!data || typeof data !== 'object') return [];
+  const colorsRaw = data.color ?? data.colors ?? data.threadColor ?? data.thread_color;
+  if (Array.isArray(colorsRaw)) {
+    return colorsRaw.map(normalizeEmbroideryColorLabel).filter(Boolean);
+  }
+  if (typeof colorsRaw === 'string') {
+    return colorsRaw
+      .split(',')
+      .map(normalizeEmbroideryColorLabel)
+      .filter(Boolean);
+  }
+  return [];
 }
 
 function mergeButtons(localList, remoteList) {
@@ -205,15 +246,48 @@ export function FirebaseCatalogProvider({ children }) {
     return 0;
   }, [parseMoney]);
 
+  const discountFromDocData = useCallback((data) => {
+    if (!data || typeof data !== 'object') return 0;
+    const keys = ['discountAmount', 'discount_value', 'discountValue', 'discount', 'off', 'discountPercent'];
+    for (const k of keys) {
+      if (data[k] != null) {
+        const p = parseMoney(data[k]);
+        if (p > 0) return p;
+      }
+    }
+    return 0;
+  }, [parseMoney]);
+
+  const originalPriceFromDocData = useCallback((data) => {
+    if (!data || typeof data !== 'object') return 0;
+    const keys = ['mrp', 'MRP', 'originalPrice', 'listPrice', 'compareAtPrice'];
+    for (const k of keys) {
+      if (data[k] != null) {
+        const p = parseMoney(data[k]);
+        if (p > 0) return p;
+      }
+    }
+    return 0;
+  }, [parseMoney]);
+
   const makeGarmentMetadataMap = useCallback((docs) => {
-    /** @type {Record<string, { price?: number, recommended_buttons?: any[], default_recommended_button?: string }>} */
+    /** @type {Record<string, { price?: number, mrp?: number, MRP?: number, discount?: number, recommended_buttons?: any[], default_recommended_button?: string }>} */
     const out = {};
     (docs || []).forEach((docSnap) => {
       const d = docSnap.data() || {};
       const price = priceFromDocData(d);
+      const discount = discountFromDocData(d);
+      const mrp = originalPriceFromDocData(d);
       
       const entry = {};
       if (price > 0) entry.price = price;
+      if (mrp > 0) {
+        entry.mrp = mrp;
+        entry.MRP = mrp;
+      }
+      if (discount > 0) {
+        entry.discount = discount;
+      }
       if (Array.isArray(d.recommended_buttons)) entry.recommended_buttons = d.recommended_buttons;
       if (d.default_recommended_button) entry.default_recommended_button = d.default_recommended_button;
       
@@ -227,7 +301,7 @@ export function FirebaseCatalogProvider({ children }) {
       });
     });
     return out;
-  }, [priceFromDocData]);
+  }, [priceFromDocData, discountFromDocData, originalPriceFromDocData]);
 
   const enabled = isFirebaseConfigured();
 
@@ -439,6 +513,10 @@ export function FirebaseCatalogProvider({ children }) {
         if (cancelled) return;
         const list = docs.map((docSnap) => {
           const d = docSnap.data() || {};
+          const typeParsed = normalizeEmbroideryType(
+            d.type || d.workType || d.technique || d.work || d.work_type || ''
+          );
+          const colorList = parseEmbroideryColors(d);
           const thumb =
             readSrcField(d) ||
             embroideryFieldImageUri(d, ['profileImage', 'thumbnail', 'image', 'photo']);
@@ -448,12 +526,7 @@ export function FirebaseCatalogProvider({ children }) {
             'profile_image_sadri',
           ]);
           const extraUris = embroideryExtraProfileUris(d);
-          let price = 0;
-          if (typeof d.price === 'number' && Number.isFinite(d.price)) price = d.price;
-          else if (typeof d.price === 'string') {
-            const n = Number(String(d.price).replace(/[^\d.-]/g, ''));
-            if (Number.isFinite(n)) price = n;
-          }
+          const price = readEmbroideryPrice(d);
           const description =
             typeof d.description === 'string' && d.description.trim().length > 0
               ? d.description.trim()
@@ -465,7 +538,11 @@ export function FirebaseCatalogProvider({ children }) {
             name: d.name || docSnap.id,
             description,
             price,
-            workType: d.type || d.workType || d.technique || d.work || d.work_type || '-',
+            type: typeParsed.label || '-',
+            typeKey: typeParsed.key || '',
+            workType: typeParsed.label || '-',
+            color: colorList.length ? colorList.join(', ') : '',
+            colors: colorList,
             profileImage: thumb ? { uri: thumb } : null,
             profileImageSadri: sadriUri ? { uri: sadriUri } : null,
             /** Firebase “other” / gallery uploads — info carousel mein main / Sadri ke baad */

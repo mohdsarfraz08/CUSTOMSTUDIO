@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { KURTA_STYLES, PAJAMA_STYLES, SADRI_STYLES, COAT_STYLES } from '../../../../Data/styleData';
 import { CustomTheme } from '../../../../../constants/theme';
 
@@ -19,8 +20,8 @@ const styles = StyleSheet.create({
     },
     styleOption: {
         width: '100%',
-        aspectRatio: 0.85, // Taller boxes
-        backgroundColor: '#F5F1E8',
+        aspectRatio: 0.85,
+        backgroundColor: '#F6F4EF',
         borderRadius: 4,
         justifyContent: 'center',
         alignItems: 'center',
@@ -28,21 +29,23 @@ const styles = StyleSheet.create({
         borderWidth: 0.5,
         borderColor: '#000000',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 4,
-        elevation: 3,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 6,
+        elevation: 4,
+        overflow: 'visible',
     },
     activeStyleOption: {
-        borderColor: CustomTheme.accentGold,
-        borderWidth: 2.5,
-        backgroundColor: '#FFFFFF', // White background to make it pop
+        borderColor: '#c9a869ff',
+        borderWidth: 2,
+        backgroundColor: '#C8A96A', // Gold background
         borderRadius: 4,
-        shadowColor: CustomTheme.accentGold,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 6,
+        shadowColor: 'rgba(0,0,0,0.8)',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 1,
+        shadowRadius: 10,
+        elevation: 12,
+        overflow: 'visible',
     },
     optionLabel: {
         fontSize: 11,
@@ -102,12 +105,12 @@ const styles = StyleSheet.create({
 const areEqual = (prevProps, nextProps) => {
     // 1. Check if the value for this specific section changed
     if (prevProps.selections[nextProps.section.key] !== nextProps.selections[nextProps.section.key]) return false;
-    
+
     // 2. Check if the dependency value changed
     if (nextProps.section.dependency && nextProps.section.dependency.key) {
         if (prevProps.selections[nextProps.section.dependency.key] !== nextProps.selections[nextProps.section.dependency.key]) return false;
     }
-    
+
     // 3. Check blockers for pockets
     if (nextProps.section.key === 'sadriUpperPocket') {
         if (prevProps.isSadriUpperPocketBlocked !== nextProps.isSadriUpperPocketBlocked) return false;
@@ -116,7 +119,7 @@ const areEqual = (prevProps, nextProps) => {
     if (nextProps.section.key === 'coatUpperPocket') {
         if (prevProps.coatRightBaseActive !== nextProps.coatRightBaseActive) return false;
     }
-    
+
     // 4. Check Jodhpuri mode for coat lapel
     if (nextProps.section.key === 'coatLapel') {
         if (prevProps.isJodhpuriMode !== nextProps.isJodhpuriMode) return false;
@@ -139,7 +142,7 @@ const StyleSection = memo(({ section, selections, handleStyleChange, isJodhpuriM
     }
 
     const disableUpperPocket = (section.key === 'sadriUpperPocket' && sadriRightBaseActive) ||
-                               (section.key === 'coatUpperPocket' && coatRightBaseActive);
+        (section.key === 'coatUpperPocket' && coatRightBaseActive);
 
     const isCoatLapelJodhpuri = section.key === 'coatLapel' && isJodhpuriMode;
 
@@ -175,14 +178,25 @@ const StyleSection = memo(({ section, selections, handleStyleChange, isJodhpuriM
                                     handleStyleChange(section.key, opt.value);
                                 }}
                             >
-                                {IconComponent ? <IconComponent size={110} /> : <Text style={{ color: '#94a3b8' }}>Icon</Text>}
+                                {/* Inner Glow effect */}
+                                <View style={{
+                                    ...StyleSheet.absoluteFillObject,
+                                    borderRadius: 4,
+                                    borderWidth: 1,
+                                    borderColor: isActive ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.4)',
+                                    margin: 1
+                                }} pointerEvents="none" />
+
+                                {IconComponent ? <IconComponent size={110} stroke={isActive ? '#fff' : '#1D1D1D'} color={isActive ? '#fff' : '#1D1D1D'} /> : <Text style={{ color: '#94a3b8' }}>Icon</Text>}
                                 {isActive && (
-                                    <View style={{ position: 'absolute', top: 8, right: 8, width: 8, height: 8, borderRadius: 4, backgroundColor: CustomTheme.accentGold }} />
+                                    <View style={{ position: 'absolute', top: -4, right: -4, backgroundColor: '#ffffffff', borderRadius: 9, width: 18, height: 18, justifyContent: 'center', alignItems: 'center', elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3, zIndex: 10 }}>
+                                        <MaterialIcons name="check" size={12} color="#000000ff" />
+                                    </View>
                                 )}
                             </TouchableOpacity>
                             <Text style={[
-                                styles.optionLabel, 
-                                isActive && { color: CustomTheme.accentGold, fontWeight: '900', fontSize: 12.5 }
+                                styles.optionLabel,
+                                isActive && { color: '#C8A96A', fontWeight: '900', fontSize: 12 }
                             ]}>
                                 {opt.label}
                             </Text>
