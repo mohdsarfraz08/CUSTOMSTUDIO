@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Image, StyleSheet } from 'react-native';
 
+import { useResponsive } from '../../../../hooks/useResponsive';
+
 // ENGINE & DATA IMPORTS
 import { useFirebaseCatalog } from '../../../context/FirebaseCatalogContext';
 import { pickFabricRenderEntry } from '../../../firebase/catalogApi';
@@ -146,7 +148,7 @@ const pickFoldedEmbroiderySources = (bundle, collection, layerObj) => {
 };
 
 // --- FLICKER-FREE LAYER COMPONENT ---
-const SmartLayer = ({ src, zIndex }) => {
+const SmartLayer = ({ src, zIndex, dynamicStyle }) => {
     const [displaySrc, setDisplaySrc] = useState(src || null);
     const [pendingSrc, setPendingSrc] = useState(null);
     const [pendingToken, setPendingToken] = useState(0);
@@ -177,7 +179,7 @@ const SmartLayer = ({ src, zIndex }) => {
         <>
             <Image
                 source={displaySrc}
-                style={[styles.modelLayer, { zIndex: zIndex }]}
+                style={[styles.modelLayer, dynamicStyle, { zIndex: zIndex }]}
                 resizeMode="contain"
             />
             {pendingSrc ? (
@@ -205,6 +207,7 @@ const SmartLayer = ({ src, zIndex }) => {
 };
 
 export default function KurtaFolded({ selections, selectedFabric, selectedButton, selectedPajamaFabric }) {
+    const { isLandscape } = useResponsive();
     const {
         kurtaRenders: KURTA_RENDERS,
         pajamaRenders: PAJAMA_RENDERS,
@@ -352,6 +355,7 @@ export default function KurtaFolded({ selections, selectedFabric, selectedButton
                             key={`folded-${layerObj.type}-${layerObj.code}-${layerObj.zIndex}-${index}-${sourceIndex}`}
                             src={src}
                             zIndex={layerObj.zIndex + sourceIndex * 0.01}
+                            dynamicStyle={isLandscape && styles.modelLayerLandscape}
                         />
                     ));
                 }
@@ -361,6 +365,7 @@ export default function KurtaFolded({ selections, selectedFabric, selectedButton
                         key={`folded-${layerObj.type}-${layerObj.code}-${layerObj.zIndex}-${index}`}
                         src={imageSource}
                         zIndex={layerObj.zIndex}
+                        dynamicStyle={isLandscape && styles.modelLayerLandscape}
                     />
                 );
             })}
@@ -380,5 +385,9 @@ const styles = StyleSheet.create({
         width: '100%',
         height: '105%',
         marginTop: -30
+    },
+    modelLayerLandscape: {
+        height: '100%',
+        marginTop: 0
     }
 });

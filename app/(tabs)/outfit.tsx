@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, type ViewStyle } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, type ViewStyle, ScrollView } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useOutfit, AVAILABLE_ITEMS, OutfitItemId } from '../../src/context/OutfitContext';
@@ -26,8 +26,8 @@ interface OutfitScreenProps {
 export default function OutfitScreen({ onNavigate, isTVView = false }: OutfitScreenProps) {
     const { selectedItems, toggleItem } = useOutfit();
     const { tvSessionId, sendCommand, subscribeToCommands } = useRemoteControl();
-    const { normalize, isMobile, isTablet, isDesktop, isTV } = useResponsive();
-    const isLargeScreen = isTablet || isDesktop || isTV || isTVView;
+    const { normalize, isMobile, isTablet, isDesktop, isTV, isLandscape } = useResponsive();
+    const isLargeScreen = isTablet || isDesktop || isTV || isTVView || isLandscape;
 
     // Listen for commands from the other device
     useEffect(() => {
@@ -45,15 +45,15 @@ export default function OutfitScreen({ onNavigate, isTVView = false }: OutfitScr
         if (tvSessionId) sendCommand('TOGGLE_ITEM', { itemId: id });
     }, [toggleItem, tvSessionId, sendCommand]);
 
-    // Yahan aap apne screens ke hisab se Card ka width aur layout set kar sakte hain
     const getDynamicCardStyle = (): ViewStyle => {
-        // # TV SCREEN
-        if (isTV || isTVView) {
+        // # LANDSCAPE OR LARGE SCREEN (TV/Desktop)
+        if (isLandscape || isTV || isTVView || isDesktop) {
             return {
-                width: '48%' as const,
-                minHeight: normalize(140),
-                padding: normalize(14),
-                borderRadius: normalize(16),
+                width: '23.5%' as const,
+                minHeight: normalize(180),
+                padding: normalize(15),
+                borderRadius: normalize(10),
+                marginBottom: normalize(15),
             };
         }
         // # MOBILE SCREEN
@@ -61,23 +61,17 @@ export default function OutfitScreen({ onNavigate, isTVView = false }: OutfitScr
             return {
                 width: '48%' as const,
                 minHeight: 180,
-                padding: 18
+                padding: 18,
+                borderRadius: 14,
             };
         }
-        // # TABLET SCREEN
+        // # TABLET PORTRAIT
         if (isTablet) {
             return {
                 width: '48%' as const,
                 minHeight: normalize(200),
-                padding: normalize(20)
-            };
-        }
-        // # TV SCREEN (Commercial Display)
-        if (isDesktop) {
-            return {
-                width: '48%' as const, // Aap chahein to ise '23%' kar sakte hain agar ek row mein 4 items chahiye
-                minHeight: normalize(240),
-                padding: normalize(24)
+                padding: normalize(20),
+                borderRadius: 16,
             };
         }
         return {};
@@ -96,60 +90,66 @@ export default function OutfitScreen({ onNavigate, isTVView = false }: OutfitScr
 
     return (
         <SafeAreaView style={styles.container}>
-            <View style={[styles.header, isLargeScreen && { paddingTop: 40, paddingBottom: 30 }]}>
-                <Text style={[styles.title, { fontSize: normalize(28) }]}>Build Your Outfit</Text>
-                <Text style={[styles.subText, { fontSize: normalize(15) }]}>Choose which pieces you want to customize</Text>
-            </View>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }}>
+                <View style={[styles.header, isLargeScreen && { paddingTop: normalize(25), paddingBottom: normalize(15) }]}>
+                    <Text style={[styles.title, { fontSize: normalize(24) }]}>Build Your Outfit</Text>
+                    <Text style={[styles.subText, { fontSize: normalize(13) }]}>Choose which pieces you want to customize</Text>
+                </View>
 
-            <View style={styles.itemsContainer}>
-                {(Object.keys(AVAILABLE_ITEMS) as OutfitItemId[]).map((id) => {
-                    const item = AVAILABLE_ITEMS[id];
-                    const isSelected = selectedItems.includes(id);
-                    const OutfitIcon = ITEM_SVGS[id];
+                <View style={[styles.itemsContainer, isLandscape && { justifyContent: 'center', gap: normalize(8) }]}>
+                    {(Object.keys(AVAILABLE_ITEMS) as OutfitItemId[]).map((id) => {
+                        const item = AVAILABLE_ITEMS[id];
+                        const isSelected = selectedItems.includes(id);
+                        const OutfitIcon = ITEM_SVGS[id];
 
-                    return (
-                        <TouchableOpacity
-                            key={id}
-                            style={[
-                                styles.itemCard,
-                                isSelected && styles.itemCardSelected,
-                                dynamicCardStyle
-                            ]}
-                            onPress={() => handleToggleItem(id)}
-                            activeOpacity={0.85}
-                        >
-                            <View style={styles.itemTopRow}>
-                                <Text style={[styles.itemName, isSelected && styles.itemTextSelected, { fontSize: normalize(16) }]}>{item.name}</Text>
-                                <View style={[
-                                    styles.badge,
-                                    isSelected ? styles.badgeSelected : styles.badgeUnselected,
-                                    { width: normalize(32), height: normalize(32), borderRadius: normalize(16) }
-                                ]}>
-                                    <MaterialIcons
-                                        name={isSelected ? 'check-circle' : 'add-circle-outline'}
-                                        size={normalize(22)}
-                                        color={isSelected ? '#000000' : '#A1A1AA'}
+                        return (
+                            <TouchableOpacity
+                                key={id}
+                                style={[
+                                    styles.itemCard,
+                                    isSelected && styles.itemCardSelected,
+                                    dynamicCardStyle
+                                ]}
+                                onPress={() => handleToggleItem(id)}
+                                activeOpacity={0.85}
+                            >
+                                <View style={styles.itemTopRow}>
+                                    <Text style={[styles.itemName, isSelected && styles.itemTextSelected, { fontSize: normalize(13) }]}>{item.name}</Text>
+                                    <View style={[
+                                        styles.badge,
+                                        isSelected ? styles.badgeSelected : styles.badgeUnselected,
+                                        { width: normalize(24), height: normalize(24), borderRadius: normalize(12) }
+                                    ]}>
+                                        <MaterialIcons
+                                            name={isSelected ? 'check-circle' : 'add-circle-outline'}
+                                            size={normalize(16)}
+                                            color={isSelected ? '#000000' : '#A1A1AA'}
+                                        />
+                                    </View>
+                                </View>
+
+                                <View style={styles.previewArea}>
+                                    <OutfitIcon 
+                                        width={isLandscape ? normalize(120) : normalize(100)} 
+                                        height={isLandscape ? normalize(120) : normalize(100)} 
                                     />
                                 </View>
-                            </View>
 
-                            <View style={styles.previewArea}>
-                                <OutfitIcon width={isTV || isTVView ? normalize(80) : normalize(150)} height={isTV || isTVView ? normalize(80) : normalize(150)} />
-                            </View>
+                            </TouchableOpacity>
+                        );
+                    })}
+                </View>
 
-                        </TouchableOpacity>
-                    );
-                })}
-            </View>
-
-            <View style={[styles.footer, isLargeScreen && { paddingVertical: 24 }, (isTV || isTVView) && { display: 'none' }]}>
-                <TouchableOpacity style={[
-                    styles.proceedButton,
-                    isLargeScreen && { paddingVertical: 20, borderRadius: 18 }
-                ]} onPress={handleProceed} activeOpacity={0.85}>
-                    <Text style={[styles.proceedButtonText, { fontSize: normalize(16) }]}>Proceed to Customize</Text>
-                </TouchableOpacity>
-            </View>
+                <View style={[styles.footer, isLargeScreen && { paddingVertical: normalize(20) }, (isTV || isTVView) && { display: 'none' }]}>
+                    <TouchableOpacity style={[
+                        styles.proceedButton,
+                        isLargeScreen && { paddingVertical: normalize(16), borderRadius: normalize(12) },
+                        isLandscape && { width: '40%', alignSelf: 'center' }
+                    ]} onPress={handleProceed} activeOpacity={0.85}>
+                        <Text style={[styles.proceedButtonText, { fontSize: normalize(15) }]}>Proceed to Customize</Text>
+                    </TouchableOpacity>
+                </View>
+            </ScrollView>
         </SafeAreaView>
     );
 }

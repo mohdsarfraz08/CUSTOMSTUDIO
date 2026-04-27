@@ -9,7 +9,7 @@ import { OutfitProvider } from '../src/context/OutfitContext';
 import { RemoteControlProvider } from '../src/context/RemoteControlContext';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { useEffect } from 'react';
-import { PixelRatio, Platform } from 'react-native';
+import { PixelRatio, Platform, Dimensions } from 'react-native';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -19,9 +19,14 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   useEffect(() => {
-    // On Google TV (low density large screen), ADB handles rotation — skip the lock
-    const isLikelyTV = Platform.isTV || (Platform.OS === 'android' && PixelRatio.get() <= 1.5);
-    if (!isLikelyTV) {
+    const { width, height } = PixelRatio.getPixelSizeForLayoutSize ? { width: Dimensions.get('window').width, height: Dimensions.get('window').height } : Dimensions.get('window');
+    const isTabletOrTV = Math.min(width, height) >= 600 || Platform.isTV || (Platform.OS === 'android' && PixelRatio.get() <= 1.5);
+
+    if (isTabletOrTV) {
+      // Allow rotation on tablets and TVs
+      ScreenOrientation.unlockAsync();
+    } else {
+      // Lock mobile phones to portrait
       ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
     }
   }, []);

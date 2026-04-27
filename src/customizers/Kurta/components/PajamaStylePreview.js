@@ -9,7 +9,7 @@ import { useBufferedRenderScene } from './useBufferedRenderScene';
 
 export default function PajamaStylePreview({ selections, selectedPajamaFabric }) {
     const { pajamaRenders: PAJAMA_RENDERS } = useFirebaseCatalog();
-    const { isMobile, isTablet, isDesktop, width } = useResponsive();
+    const { isMobile, isTablet, isDesktop, width, isLandscape } = useResponsive();
 
     const pajamaType = selections?.pajamaType || "PJ";
     const beltType = selections?.beltType || "R";
@@ -28,6 +28,13 @@ export default function PajamaStylePreview({ selections, selectedPajamaFabric })
         }
         // # TABLET SCREEN
         if (isTablet) {
+            if (isLandscape) {
+                return {
+                    width: '100%',
+                    height: '100%',
+                    marginBottom: 0,
+                };
+            }
             return {
                 width: width * 1.52,
                 height: width * 1.52,
@@ -36,6 +43,13 @@ export default function PajamaStylePreview({ selections, selectedPajamaFabric })
         }
         // # TV SCREEN (Commercial Display)
         if (isDesktop) {
+            if (isLandscape) {
+                return {
+                    width: '100%',
+                    height: '100%',
+                    marginBottom: 0,
+                };
+            }
             return {
                 width: width * 1.2, // Portrait screen ke liye ise change karein
                 height: width * 1.2,

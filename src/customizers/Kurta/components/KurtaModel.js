@@ -494,7 +494,7 @@ const pickEmbroiderySourcesForLayer = (bundle, collection, layerObj) => {
 };
 
 export default function KurtaModel({ selections, selectedFabric, selectedButton, selectedSadriButton, selectedCoatButton, selectedPajamaFabric, selectedSadriFabric, selectedCoatFabric, hasCoat = false, hasSadri, sadriCode, slideIndex = 0, selectedSkinTone = 1, onSceneReadyChange, bufferInitialScene = false }) {
-    const { isMobile, isTablet, isDesktop } = useResponsive();
+    const { isMobile, isTablet, isDesktop, isLandscape } = useResponsive();
     const {
         kurtaRenders: KURTA_RENDERS,
         pajamaRenders: PAJAMA_RENDERS,
@@ -544,6 +544,22 @@ export default function KurtaModel({ selections, selectedFabric, selectedButton,
         }
         // # TABLET SCREEN
         if (isTablet) {
+            if (isLandscape) {
+                if (isSadriLastSlide) {
+                    return {
+                        width: '200%',
+                        height: '200%',
+                        marginTop: -80,
+                        marginBottom: 0
+                    };
+                }
+                return {
+                    width: '100%',
+                    height: '100%',
+                    marginTop: 0,
+                    marginBottom: 0
+                };
+            }
             if (isSadriLastSlide) {
                 return {
                     width: '145%',
@@ -562,9 +578,9 @@ export default function KurtaModel({ selections, selectedFabric, selectedButton,
             }
             if (isInitialSlides) {
                 return {
-                    width: '96%',
-                    height: '96%',
-                    marginBottom: 45
+                    width: '88%',
+                    height: '88%',
+                    marginBottom: 20
                 };
             }
             return {
@@ -575,6 +591,22 @@ export default function KurtaModel({ selections, selectedFabric, selectedButton,
         }
         // # TV SCREEN (Commercial Display)
         if (isDesktop) {
+            if (isLandscape) {
+                if (isSadriLastSlide) {
+                    return {
+                        width: '190%',
+                        height: '190%',
+                        marginTop: 700,
+                        marginBottom: 0
+                    };
+                }
+                return {
+                    width: '100%',
+                    height: '100%',
+                    marginTop: 0,
+                    marginBottom: 0
+                };
+            }
             if (isSadriLastSlide) {
                 return {
                     width: '132%',
@@ -593,9 +625,9 @@ export default function KurtaModel({ selections, selectedFabric, selectedButton,
             }
             if (isInitialSlides) {
                 return {
-                    width: '125%',
-                    height: '125%',
-                    marginBottom: 80
+                    width: '105%',
+                    height: '105%',
+                    marginBottom: 60
                 };
             }
             return {

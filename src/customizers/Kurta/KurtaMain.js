@@ -473,6 +473,7 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
     } = useFirebaseCatalog();
 
     const embroideryCollections = embroideryCollectionsFromCtx;
+    const [fabricSearchQuery, setFabricSearchQuery] = useState('');
 
     const listForGarmentTab = useCallback(
         (tab) => {
@@ -487,13 +488,14 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
         },
         [fabrics, fabricsByGarment, fabricSearchQuery]
     );
-    const { width, isMobile, isDesktop, isTV, normalize } = useResponsive();
+    const { width, isMobile, isDesktop, isTV, normalize, isLandscape } = useResponsive();
     const effectiveTV = isTVView || isTV;
     const isTabletViewport = !isDesktop && !isTV && width >= 768;
+    const isLargeLandscape = isLandscape && (isTabletViewport || isDesktop);
     const insets = useSafeAreaInsets();
     const { selectedItems, setSelectedItems } = useOutfit();
-    const [activePanel, setActivePanel] = useState(null);
-    const [isPanelOpen, setIsPanelOpen] = useState(false);
+    const [activePanel, setActivePanel] = useState(isLargeLandscape ? 'Fabric' : null);
+    const [isPanelOpen, setIsPanelOpen] = useState(isLargeLandscape);
     const [extrasTrayOpen, setExtrasTrayOpen] = useState(false);
     const extrasTrayAnim = useRef(new Animated.Value(0)).current;
     const extrasTrayAnimatingRef = useRef(false);
@@ -604,7 +606,6 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
     const fabricPanelScrollY = useRef(new Animated.Value(0)).current;
     const [fabricPanelContentHeight, setFabricPanelContentHeight] = useState(1);
     const [fabricPanelVisibleHeight, setFabricPanelVisibleHeight] = useState(1);
-    const [fabricSearchQuery, setFabricSearchQuery] = useState('');
     const bgFadeAnim = useRef(new Animated.Value(0)).current;
     const bgTransitionTimerRef = useRef(null);
     const bgAnimatingRef = useRef(false);
@@ -1191,6 +1192,10 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
 
     // Yahan aap apne screens ke hisab se Side Panel ki width set kar sakte hain
     const getDynamicPanelWidth = () => {
+        // # LANDSCAPE DASHBOARD (Tablet/TV)
+        if (isLargeLandscape) {
+            return width * 0.35;
+        }
         // # TV SCREEN (portrait 541dp)
         if (effectiveTV) {
             return Math.min(width * 0.48, 280);
@@ -1379,11 +1384,26 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
 
     const togglePanel = (panelName) => {
         if (extrasTrayOpen) animateExtrasTray(false);
+        
+        // In landscape, we don't want the panel to EVER close.
+        if (isLargeLandscape) {
+            setActivePanel(panelName);
+            setIsPanelOpen(true);
+            if (tvSessionId) sendCommand('SET_PANEL', { panel: panelName });
+            return;
+        }
+
         if (activePanel === panelName && isPanelOpen) {
             closePanel();
         } else {
-            setActivePanel(panelName); setIsPanelOpen(true);
-            Animated.timing(slideAnim, { toValue: 0, duration: 300, easing: Easing.out(Easing.ease), useNativeDriver: true }).start();
+            setActivePanel(panelName);
+            setIsPanelOpen(true);
+            Animated.timing(slideAnim, {
+                toValue: 0,
+                duration: 300,
+                easing: Easing.out(Easing.ease),
+                useNativeDriver: true
+            }).start();
             if (tvSessionId) sendCommand('SET_PANEL', { panel: panelName });
         }
     };
@@ -1391,11 +1411,15 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
     const toggleExtrasTray = () => {
         if (extrasTrayAnimatingRef.current) return;
         if (extrasTrayOpen) return animateExtrasTray(false);
-        if (isPanelOpen) closePanel();
+        
+        // In landscape, we don't want to close the side panel when opening extras.
+        if (!isLargeLandscape && isPanelOpen) closePanel();
+        
         animateExtrasTray(true);
     };
 
     const closePanel = () => {
+        if (isLargeLandscape) return; // Prevent closing in landscape
         Animated.timing(slideAnim, { toValue: -4000, duration: 250, easing: Easing.in(Easing.ease), useNativeDriver: true }).start(() => {
             setIsPanelOpen(false); setActivePanel(null);
         });
@@ -1437,8 +1461,10 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                 sendCommand('STYLE_CHANGE', { type: 'sadriUpperPocket', value: '0' });
             }
         }
-        setIsPanelOpen(false);
-        setActivePanel(null);
+        if (!isLargeLandscape) {
+            setIsPanelOpen(false);
+            setActivePanel(null);
+        }
         if (type === 'cuffStyle') {
             carouselRef.current?.scrollToIndex(1);
         } else if (type === 'sadriType') {
@@ -1755,7 +1781,7 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
         return (
             <TouchableOpacity
                 key={fabric.fabricID}
-                style={[styles.fabricCard, isActive && styles.fabricCardActive, effectiveTV && { marginBottom: 8 }]}
+                style={[styles.fabricCard, isActive && styles.fabricCardActive, isLargeLandscape && styles.fabricCardTablet, effectiveTV && { marginBottom: 8 }]}
                 onPress={onSelect}
                 activeOpacity={0.9}
             >
@@ -2126,8 +2152,9 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                                             : selections.coatEmbroideryID === embroidery.id;
                                     const embPrice = Number(embroidery.price);
                                     const showEmbPrice = Number.isFinite(embPrice) && embPrice > 0;
+                                    
                                     return (
-                                        <View key={embroidery.id} style={[styles.fabricCard, isActive && styles.fabricCardActive]}>
+                                        <View key={embroidery.id} style={[styles.fabricCard, isActive && styles.fabricCardActive, isLargeLandscape && styles.fabricCardTablet]}>
                                             <TouchableOpacity
                                                 onPressIn={() => {
                                                     prefetchEmbroideryCollectionsForPreview(embroidery, embroideryPanelTab);
@@ -2138,31 +2165,26 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                                                 activeOpacity={0.9}
                                             >
                                                 {profileThumb ? (
-                                                    <Image source={profileThumb} style={styles.fabricImage} resizeMode="cover" />
+                                                    <Image source={profileThumb} style={[styles.fabricImage, isLargeLandscape && { height: 200 }]} resizeMode="cover" />
                                                 ) : (
                                                     <View style={[styles.fabricImage, { backgroundColor: '#f0e6d2' }]} />
                                                 )}
-                                            </TouchableOpacity>
-                                            <View style={styles.fabricInfo}>
-                                                <TouchableOpacity
-                                                    style={styles.fabricInfoTextWrap}
-                                                    onPressIn={() => {
-                                                        prefetchEmbroideryCollectionsForPreview(embroidery, embroideryPanelTab);
-                                                    }}
-                                                    onPress={() => setEmbroideryPreview({ item: embroidery, panelMode: embroideryPanelTab })}
-                                                    activeOpacity={0.85}
-                                                >
-                                                    <Text style={styles.fabricName} numberOfLines={2}>{embroidery.name}</Text>
-                                                    {showEmbPrice ? (
-                                                        <Text style={[styles.fabricBrand, { color: '#27ae60', fontWeight: 'bold' }]}>
-                                                            + ₹ {embroidery.price}
+                                                {showEmbPrice && (
+                                                    <View style={styles.fabricPriceBadge}>
+                                                        <Text style={[styles.fabricPrice, effectiveTV && { fontSize: 9 }]}>
+                                                            ₹ {Math.round(embPrice).toLocaleString('en-IN')}
                                                         </Text>
-                                                    ) : null}
-                                                </TouchableOpacity>
+                                                    </View>
+                                                )}
+                                            </TouchableOpacity>
+
+                                            <View style={[styles.fabricInfo, effectiveTV && { minHeight: 36, paddingVertical: 5 }]}>
+                                                <View style={styles.fabricInfoTextWrap}>
+                                                    <Text style={[styles.fabricName, effectiveTV && { fontSize: 12 }]} numberOfLines={1}>{embroidery.name}</Text>
+                                                    <Text style={[styles.fabricBrand, effectiveTV && { fontSize: 10 }]} numberOfLines={1}>{embroidery.collectionName || 'COLLECTION'}</Text>
+                                                </View>
                                                 <TouchableOpacity
-                                                    onPress={() => {
-                                                        setInfoEmbroidery({ item: embroidery, panelMode: embroideryPanelTab });
-                                                    }}
+                                                    onPress={() => setInfoEmbroidery({ item: embroidery, panelMode: embroideryPanelTab })}
                                                     hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
                                                     style={styles.fabricInfoIconBtn}
                                                 >
@@ -2382,6 +2404,132 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
 
     const isFoldedSlide = hasOuterwear ? currentCarouselIndex === 2 : currentCarouselIndex === 1;
 
+    const renderRightMenuContent = () => (
+        <View style={{ alignItems: 'center' }}>
+            <Animated.View
+                pointerEvents={extrasTrayOpen ? 'none' : 'auto'}
+                style={{
+                    opacity: extrasTrayAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [1, 0],
+                    }),
+                    transform: [
+                        {
+                            scale: extrasTrayAnim.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: [1, 0.72],
+                            }),
+                        },
+                    ],
+                }}
+            >
+                {[IconFabric, IconStyle, IconEmbroidery].map((IconComponent, index) => {
+                    const isActive = activePanel === IconComponent.displayName;
+                    const mainColor = isActive ? '#FFFFFF' : '#1D1D1D';
+                    return (
+                        <TouchableOpacity 
+                            key={index} 
+                            style={[
+                                styles.iconButton, 
+                                isActive && styles.iconButtonActive, 
+                                isLargeLandscape && styles.iconButtonLandscape,
+                                effectiveTV && { width: normalize(36), height: normalize(36), borderRadius: normalize(8) }
+                            ]} 
+                            onPress={() => togglePanel(IconComponent.displayName)}
+                        >
+                            <IconComponent size={isLargeLandscape ? 28 : (effectiveTV ? normalize(14) : 22)} color={mainColor} />
+                            <Text style={[
+                                styles.iconText, 
+                                isLargeLandscape && styles.iconTextLandscape,
+                                { color: mainColor, marginTop: 1, fontSize: effectiveTV ? normalize(6) : 9 }
+                            ]}>
+                                {IconComponent.displayName === 'Embroidery' ? 'EMB' : IconComponent.displayName.toUpperCase()}
+                            </Text>
+                            {isActive && (
+                                <View style={{ position: 'absolute', top: -4, right: -4, backgroundColor: '#FFFFFF', borderRadius: 9, width: 18, height: 18, justifyContent: 'center', alignItems: 'center', elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3 }}>
+                                    <MaterialIcons name="check" size={12} color="#000000" />
+                                </View>
+                            )}
+                        </TouchableOpacity>
+                    );
+                })}
+            </Animated.View>
+
+            <View style={{ alignItems: 'center', position: 'relative' }}>
+                <Animated.View
+                    pointerEvents={extrasTrayOpen ? 'auto' : 'none'}
+                    style={[
+                        styles.extrasTrayFloating,
+                        {
+                            opacity: extrasTrayAnim,
+                            position: 'absolute',
+                            bottom: 64, 
+                        },
+                    ]}
+                >
+                    {EXTRAS_TRAY_ITEMS.map(({ id, Icon, label }) => {
+                        const TrayIcon = resolveSvgComponent(Icon);
+                        return (
+                        <Animated.View
+                            key={id}
+                            style={{
+                                opacity: extrasTrayAnim.interpolate({
+                                    inputRange: [0, 0.4, 1],
+                                    outputRange: [0, 0.2, 1],
+                                }),
+                                transform: [
+                                    {
+                                        translateY: extrasTrayAnim.interpolate({
+                                            inputRange: [0, 1],
+                                            outputRange: [16 * (id + 1), 0],
+                                        }),
+                                    },
+                                ],
+                            }}
+                        >
+                            <TouchableOpacity
+                                style={[styles.extrasTraySlot, effectiveTV && { width: normalize(40), height: normalize(40), borderRadius: normalize(8) }]}
+                                activeOpacity={0.85}
+                                onPress={() => {
+                                    if (id === 0) { setSummaryTab(fabricTab || 'Kurta'); setSummaryOpen(true); animateExtrasTray(false); return; }
+                                    if (id === 2) { handleSharePreset(); animateExtrasTray(false); return; }
+                                    if (id === 3) { setSkinToneModalOpen(true); animateExtrasTray(false); return; }
+                                }}
+                            >
+                                {TrayIcon ? (
+                                    <TrayIcon width={effectiveTV ? normalize(18) : 26} height={effectiveTV ? normalize(18) : 26} />
+                                ) : (
+                                    <MaterialIcons name="tune" size={effectiveTV ? normalize(18) : 26} color="#1D1D1D" />
+                                )}
+                                <Text style={[styles.extrasTraySlotLabel, { fontSize: effectiveTV ? normalize(5) : 9 }]}>{label}</Text>
+                            </TouchableOpacity>
+                        </Animated.View>
+                        );
+                    })}
+                </Animated.View>
+
+                <TouchableOpacity
+                    style={[
+                        styles.iconButton, 
+                        extrasTrayOpen && styles.iconButtonActive, 
+                        isLargeLandscape && styles.iconButtonLandscape,
+                        { marginBottom: 0 }, 
+                        effectiveTV && { width: normalize(36), height: normalize(36), borderRadius: normalize(8) }
+                    ]}
+                    onPress={toggleExtrasTray}
+                >
+                    <IconExtras color={extrasTrayOpen ? '#FFF' : '#1D1D1D'} size={isLargeLandscape ? 30 : (effectiveTV ? normalize(14) : 24)} />
+                    <Text style={[
+                        styles.iconText, 
+                        isLargeLandscape && styles.iconTextLandscape,
+                        extrasTrayOpen && { color: '#FFF' }, 
+                        { fontSize: effectiveTV ? normalize(6) : 11 }
+                    ]}>Extras</Text>
+                </TouchableOpacity>
+            </View>
+        </View>
+    );
+
     return (
         <SafeAreaView style={styles.container}>
             <View pointerEvents="none" style={styles.dynamicBgLayer}>
@@ -2399,231 +2547,149 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                 ) : null}
             </View>
 
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <MaterialIcons name="arrow-back" size={22} color="#000000" />
-                </TouchableOpacity>
-                <View style={styles.headerLogoContainer}>
-                    {/* Logo removed as requested */}
+            {!isLargeLandscape && (
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                        <MaterialIcons name="arrow-back" size={22} color="#000000" />
+                    </TouchableOpacity>
+                    <View style={{ width: 40 }} />
                 </View>
-                <View style={{ width: 40 }} />
-            </View>
+            )}
 
-            {/* --- LAYER 1: 3D MODEL ENGINE --- */}
-            <View
-                ref={shareCaptureRef}
-                collapsable={false}
-                style={[styles.shareCaptureContainer, isPreparingShareShot && styles.shareCapturePreparing]}
-            >
-                <View style={[styles.modelContainer, effectiveTV && { width: '82%', alignSelf: 'center' }]}>
-                    <FullScreenCarousel
-                        ref={carouselRef}
-                        data={buildSlides()}
-                        carouselWidth={effectiveTV ? width * 0.82 : width}
-                        onIndexChange={(index) => {
-                            setCurrentCarouselIndex(index);
-                            if (tvSessionId && !isRemoteScrolling.current) sendCommand('CAROUSEL_SCROLL', { index });
-                        }}
-                    />
-                    {/* INITIAL LOADING CURTAIN */}
-                    {!hasInitialHeroRenderLoaded ? (
-                        <View style={styles.initialLoadingCurtain}>
-                            <View style={styles.initialLoadingContent}>
-                                {/* Logo removed */}
-                                <View style={styles.initialLoadingSpinnerWrap}>
-                                    {!loadError ? (
-                                        <DotLottie
-                                            source={{ uri: RENDER_LOADING_ANIMATION_URL }}
-                                            autoplay
-                                            loop
-                                            style={styles.initialLoadingAnimation}
-                                        />
-                                    ) : null}
+            <View style={[styles.mainLayout, isLargeLandscape && styles.mainLayoutLandscape]}>
+                {isLargeLandscape ? (
+                    <>
+                        {/* --- COLUMN 1: LEFT SIDE PANEL (Always Open) --- */}
+                        <View style={styles.landscapeLeftPanel}>
+                            <View style={styles.panelHeader}>
+                                <Text style={[styles.panelTitle, effectiveTV && { fontSize: normalize(18) }]}>
+                                    {activePanel || 'Fabric'}
+                                </Text>
+                                <View style={styles.panelTitleUnderline} />
+                            </View>
+                            <View style={styles.panelContentArea}>
+                                {renderPanelContent()}
+                            </View>
+                        </View>
+
+                        {/* --- COLUMN 2: CENTER MODEL (Full Height) --- */}
+                        <View
+                            ref={shareCaptureRef}
+                            collapsable={false}
+                            style={[
+                                styles.landscapeCenterModel,
+                                isPreparingShareShot && styles.shareCapturePreparing,
+                            ]}
+                        >
+                            <View style={styles.modelContainer}>
+                                <FullScreenCarousel
+                                    ref={carouselRef}
+                                    data={buildSlides()}
+                                    carouselWidth={width * 0.44}
+                                    onIndexChange={(index) => {
+                                        setCurrentCarouselIndex(index);
+                                        if (tvSessionId && !isRemoteScrolling.current) sendCommand('CAROUSEL_SCROLL', { index });
+                                    }}
+                                />
+                            </View>
+                            {/* Loading Overlays */}
+                            {!hasInitialHeroRenderLoaded && (
+                                <View style={styles.initialLoadingCurtain}>
                                     <Text style={styles.initialLoadingText}>Dressing Model...</Text>
                                 </View>
-                            </View>
+                            )}
                         </View>
-                    ) : null}
 
-                    {/* ONGOING LOADING OVERLAY */}
-                    {showRenderLoadingOverlay ? (
-                        <View style={styles.renderLoadingOverlay} pointerEvents="none">
-                            <View style={styles.renderLoadingPill}>
-                                {!loadError ? (
-                                    <DotLottie
-                                        source={{ uri: RENDER_LOADING_ANIMATION_URL }}
-                                        autoplay
-                                        loop
-                                        style={styles.renderLoadingAnimationSmall}
-                                    />
-                                ) : null}
-                                <Text style={[styles.renderLoadingText, { marginTop: 0, backgroundColor: 'transparent', shadowOpacity: 0, borderWidth: 0, paddingHorizontal: 0, paddingVertical: 0 }]}>
-                                    {renderLoadingLabel}
-                                </Text>
-                            </View>
-                        </View>
-                    ) : null}
-                </View>
-                {isPreparingShareShot ? (
-                    <View pointerEvents="none" style={styles.shareShotOverlay}>
-                        <View style={styles.shareLogoWrap}>
-                            {/* Logo removed */}
-                        </View>
-                        <View style={styles.shareBottomLeftWrap}>
-                            {shareLinkForShot ? (
-                                <View style={styles.shareQrWrap}>
-                                    <QRCode value={shareLinkForShot} size={58} backgroundColor="white" color="#14213D" />
-                                </View>
-                            ) : null}
-                            <View style={styles.shareSignatureWrap}>
-                                <Text style={styles.shareSignatureText}>Design by Customer</Text>
-                                {shareLinkForShot ? (
-                                    <Text style={styles.shareSignatureLink} numberOfLines={2}>
-                                        {shareLinkForShot}
-                                    </Text>
-                                ) : null}
-                            </View>
-                        </View>
-                    </View>
-                ) : null}
-            </View>
-
-            <View style={[
-                styles.rightMenu,
-                effectiveTV && { right: normalize(20) }
-            ]}>
-                <Animated.View
-                    pointerEvents={extrasTrayOpen ? 'none' : 'auto'}
-                    style={{
-                        opacity: extrasTrayAnim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [1, 0],
-                        }),
-                        transform: [
-                            {
-                                scale: extrasTrayAnim.interpolate({
-                                    inputRange: [0, 1],
-                                    outputRange: [1, 0.72],
-                                }),
-                            },
-                        ],
-                    }}
-                >
-                    {[IconFabric, IconStyle, IconEmbroidery].map((IconComponent, index) => {
-                        const isActive = activePanel === IconComponent.displayName;
-                        const mainColor = isActive ? '#FFFFFF' : '#1D1D1D';
-                        return (
-                            <TouchableOpacity key={index} style={[styles.iconButton, isActive && styles.iconButtonActive, effectiveTV && { width: normalize(36), height: normalize(36), borderRadius: normalize(8) }]} onPress={() => togglePanel(IconComponent.displayName)}>
-                                <IconComponent size={effectiveTV ? normalize(14) : 22} color={mainColor} />
-                                <Text style={[styles.iconText, { color: mainColor, marginTop: 1, fontSize: effectiveTV ? normalize(6) : 9 }]}>
-                                    {IconComponent.displayName === 'Embroidery' ? 'EMB' : IconComponent.displayName.toUpperCase()}
-                                </Text>
-                                {isActive && (
-                                    <View style={{ position: 'absolute', top: -4, right: -4, backgroundColor: '#FFFFFF', borderRadius: 9, width: 18, height: 18, justifyContent: 'center', alignItems: 'center', elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3 }}>
-                                        <MaterialIcons name="check" size={12} color="#000000" />
-                                    </View>
-                                )}
-                            </TouchableOpacity>
-                        );
-                    })}
-                </Animated.View>
-
-                {/* EXTRAS CONTAINER (BUTTON + TRAY) */}
-                <View style={{ alignItems: 'center', position: 'relative' }}>
-                    <Animated.View
-                        pointerEvents={extrasTrayOpen ? 'auto' : 'none'}
-                        style={[
-                            styles.extrasTrayFloating,
-                            {
-                                opacity: extrasTrayAnim,
-                                position: 'absolute',
-                                bottom: 64, // Positioned right above the button
-                            },
-                        ]}
-                    >
-                        {EXTRAS_TRAY_ITEMS.map(({ id, Icon, label }) => {
-                            const TrayIcon = resolveSvgComponent(Icon);
-                            return (
-                            <Animated.View
-                                key={id}
-                                style={{
-                                    opacity: extrasTrayAnim.interpolate({
-                                        inputRange: [0, 0.4, 1],
-                                        outputRange: [0, 0.2, 1],
-                                    }),
-                                    transform: [
-                                        {
-                                            translateY: extrasTrayAnim.interpolate({
-                                                inputRange: [0, 1],
-                                                outputRange: [16 * (id + 1), 0],
-                                            }),
-                                        },
-                                    ],
-                                }}
-                            >
-                                <TouchableOpacity
-                                    style={[styles.extrasTraySlot, effectiveTV && { width: normalize(40), height: normalize(40), borderRadius: normalize(8) }]}
-                                    activeOpacity={0.85}
-                                    onPress={() => {
-                                        if (id === 0) { setSummaryTab(fabricTab || 'Kurta'); setSummaryOpen(true); animateExtrasTray(false); return; }
-                                        if (id === 2) { handleSharePreset(); animateExtrasTray(false); return; }
-                                        if (id === 3) { setSkinToneModalOpen(true); animateExtrasTray(false); return; }
-                                    }}
-                                >
-                                    {TrayIcon ? (
-                                        <TrayIcon width={effectiveTV ? normalize(18) : 26} height={effectiveTV ? normalize(18) : 26} />
-                                    ) : (
-                                        <MaterialIcons name="tune" size={effectiveTV ? normalize(18) : 26} color="#1D1D1D" />
-                                    )}
-                                    <Text style={[styles.extrasTraySlotLabel, effectiveTV && { fontSize: normalize(6) }]}>{label}</Text>
+                        {/* --- COLUMN 3: RIGHT SIDEBAR (Icons + Price + Proceed) --- */}
+                        <View style={styles.landscapeRightSidebar}>
+                            <View style={styles.landscapeTopActions}>
+                                <TouchableOpacity onPress={() => router.back()} style={styles.landscapeBackButton}>
+                                    <MaterialIcons name="arrow-back" size={24} color="#000000" />
+                                    <Text style={styles.landscapeBackText}>BACK</Text>
                                 </TouchableOpacity>
-                            </Animated.View>
-                            );
-                        })}
-                    </Animated.View>
-
-                    <TouchableOpacity
-                        style={[styles.iconButton, extrasTrayOpen && styles.iconButtonActive, { marginBottom: 15 }, effectiveTV && { width: normalize(36), height: normalize(36), borderRadius: normalize(8) }]}
-                        onPress={toggleExtrasTray}
-                    >
-                        <IconExtras size={effectiveTV ? normalize(14) : 22} color={extrasTrayOpen ? '#FFFFFF' : '#1D1D1D'} />
-                        <Text style={[styles.iconText, { color: extrasTrayOpen ? '#FFFFFF' : '#1D1D1D', marginTop: 1, fontSize: effectiveTV ? normalize(6) : 9 }]}>{extrasTrayOpen ? 'HIDE' : 'EXTRAS'}</Text>
-                        {extrasTrayOpen && (
-                            <View style={{ position: 'absolute', top: -4, right: -4, backgroundColor: '#FFFFFF', borderRadius: 9, width: 18, height: 18, justifyContent: 'center', alignItems: 'center', elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3 }}>
-                                <MaterialIcons name="check" size={12} color="#000000" />
+                                
+                                <TouchableOpacity style={styles.landscapeSettingsBtn}>
+                                    <MaterialIcons name="settings" size={24} color="#1D1D1D" />
+                                </TouchableOpacity>
                             </View>
+
+                            <View style={styles.landscapeIconsGroup}>
+                                {renderRightMenuContent()}
+                            </View>
+                            
+                            <View style={styles.landscapeBottomGroup}>
+                                <View style={styles.landscapePriceSection}>
+                                    <Text style={styles.landscapePriceLabel}>Custom Kurta Set</Text>
+                                    <Text style={styles.landscapePriceValue}>
+                                        ₹ {Math.round(totalPrice).toLocaleString('en-IN')}
+                                    </Text>
+                                    <Text style={styles.landscapeDeliveryText}>{estimatedDeliveryLabel}</Text>
+                                </View>
+                                
+                                <TouchableOpacity 
+                                    style={styles.landscapeCheckoutBtn}
+                                    onPress={() => alert('Measurements Screen!')}
+                                >
+                                    <Text style={styles.landscapeCheckoutText}>Lets Dress Up</Text>
+                                    <MaterialIcons name="chevron-right" size={24} color="#C8A96A" />
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </>
+                ) : (
+                    <>
+                        {/* --- PORTRAIT / MOBILE LAYOUT --- */}
+                        <View
+                            ref={shareCaptureRef}
+                            collapsable={false}
+                            style={[
+                                styles.shareCaptureContainer, 
+                                isPreparingShareShot && styles.shareCapturePreparing,
+                            ]}
+                        >
+                            <View style={[styles.modelContainer, effectiveTV && { width: '82%', alignSelf: 'center' }]}>
+                                <FullScreenCarousel
+                                    ref={carouselRef}
+                                    data={buildSlides()}
+                                    carouselWidth={effectiveTV ? width * 0.82 : width}
+                                    onIndexChange={(index) => {
+                                        setCurrentCarouselIndex(index);
+                                        if (tvSessionId && !isRemoteScrolling.current) sendCommand('CAROUSEL_SCROLL', { index });
+                                    }}
+                                />
+                            </View>
+                            {!hasInitialHeroRenderLoaded && (
+                                <View style={styles.initialLoadingCurtain}>
+                                    <Text style={styles.initialLoadingText}>Dressing Model...</Text>
+                                </View>
+                            )}
+                        </View>
+
+                        <View style={[styles.rightMenu, effectiveTV && { right: normalize(20) }]}>
+                            {renderRightMenuContent()}
+                        </View>
+
+                        {isPanelOpen && (
+                            <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={closePanel}>
+                                <View style={styles.overlayDim} />
+                            </TouchableOpacity>
                         )}
-                    </TouchableOpacity>
-                </View>
+
+                        {isPanelOpen && (
+                            <Animated.View style={[styles.sidePanel, { width: panelWidth, bottom: panelBottomOffset + insets.bottom, transform: [{ translateX: slideAnim }] }]}>
+                                <TouchableOpacity onPress={closePanel} style={styles.sidePanelCloseBtn}>
+                                    <MaterialIcons name="close" size={24} color="#000000" />
+                                </TouchableOpacity>
+                                <View style={styles.panelHeader}>
+                                    <Text style={[styles.panelTitle, effectiveTV && { fontSize: normalize(20) }]}>{activePanel}</Text>
+                                    <View style={styles.panelTitleUnderline} />
+                                </View>
+                                <View style={styles.panelContentArea}>{renderPanelContent()}</View>
+                            </Animated.View>
+                        )}
+                    </>
+                )}
             </View>
-
-            {!isTVView && isPanelOpen && (
-                <TouchableOpacity
-                    style={styles.overlay}
-                    activeOpacity={1}
-                    onPress={() => {
-                        if (isPanelOpen) closePanel();
-                    }}
-                >
-                    <View style={styles.overlayDim} />
-                </TouchableOpacity>
-            )}
-
-            {isPanelOpen && (
-                <Animated.View style={[styles.sidePanel, { width: panelWidth, bottom: panelBottomOffset + insets.bottom, transform: [{ translateX: slideAnim }] }]}>
-                    <TouchableOpacity onPress={closePanel} style={styles.sidePanelCloseBtn}>
-                        <MaterialIcons name="close" size={24} color="#000000" />
-                    </TouchableOpacity>
-
-                    <View style={styles.panelHeader}>
-                        <Text style={[styles.panelTitle, effectiveTV && { fontSize: normalize(20) }]}>
-                            {activePanel}
-                        </Text>
-                        <View style={styles.panelTitleUnderline} />
-                    </View>
-                    <View style={styles.panelContentArea}>{renderPanelContent()}</View>
-                </Animated.View>
-            )}
 
             {isButtonModalOpen && (
                 <View style={styles.buttonModalOverlay}>
@@ -3421,7 +3487,7 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                 </GestureHandlerRootView>
             </Modal>
 
-            {!isTVView && (
+            {!isTVView && !isLargeLandscape && (
                 <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 14) }, effectiveTV && { minHeight: 36, paddingTop: 2, paddingBottom: 2 }]}>
                     <View style={styles.bottomBarTint} />
                     <View style={styles.bottomBarContent}>
@@ -3690,14 +3756,15 @@ const styles = StyleSheet.create({
     panelContent: { fontSize: 16, color: '#666', paddingHorizontal: 20 },
     gridContainer: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 15, justifyContent: 'center', paddingBottom: 20, paddingTop: 14 },
     fabricCard: {
-        width: '100%',
+        width: '94%',
+        marginHorizontal: '2%',
         backgroundColor: '#FFFFFF',
-        borderRadius: 5, // ⬅️ smooth premium corners
+        borderRadius: 4, // reduced as requested
         marginBottom: 18,
         overflow: 'hidden',
 
-        borderWidth: 0.5,
-        borderColor: '#000000ff', // softer gold-beige
+        borderWidth: 0.8,
+        borderColor: '#E8DCC8', // soft thematic border
 
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 6 },
@@ -3722,9 +3789,14 @@ const styles = StyleSheet.create({
 
         elevation: 10,
     },
+    fabricCardTablet: {
+        width: '47%',
+        marginHorizontal: '1%',
+        borderRadius: 3,
+    },
     fabricImage: {
         width: '100%',
-        height: 120,
+        height: 140,
         backgroundColor: '#EBE6D9',
     },
     fabricInfo: {
@@ -4601,5 +4673,129 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: 'bold',
         letterSpacing: 2,
+    },
+    mainLayout: { flex: 1 },
+    mainLayoutLandscape: { flexDirection: 'row' },
+    landscapeLeftPanel: {
+        width: '28%',
+        backgroundColor: '#FDFBF7',
+        borderRightWidth: 1,
+        borderColor: '#E8DCC8',
+        paddingTop: 40,
+        height: '100%',
+    },
+    landscapeCenterModel: {
+        width: '44%',
+        height: '100%',
+        position: 'relative',
+    },
+    landscapeRightSidebar: {
+        width: '28%',
+        backgroundColor: 'transparent',
+        borderLeftWidth: 0,
+        paddingTop: 20,
+        paddingBottom: 40,
+        height: '100%',
+        justifyContent: 'space-between',
+    },
+    landscapeTopActions: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        alignItems: 'center',
+        paddingRight: 35,
+        marginBottom: 30,
+        gap: 15,
+    },
+    landscapeBackButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.05)',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#E8DCC8',
+    },
+    landscapeBackText: {
+        fontSize: 12,
+        fontWeight: '900',
+        marginLeft: 6,
+        color: '#000',
+    },
+    landscapeSettingsBtn: {
+        width: 44,
+        height: 44,
+        backgroundColor: 'rgba(0,0,0,0.05)',
+        borderRadius: 22,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#E8DCC8',
+    },
+    landscapeIconsGroup: {
+        alignItems: 'flex-end',
+        paddingRight: 35,
+        paddingTop: 10,
+    },
+    iconButtonLandscape: {
+        width: 68,
+        height: 68,
+        borderRadius: 10,
+        marginBottom: 30,
+    },
+    iconTextLandscape: {
+        fontSize: 10,
+        marginTop: 2,
+    },
+    landscapeBottomGroup: {
+        paddingHorizontal: 20,
+        paddingBottom: 20,
+    },
+    landscapePriceSection: {
+        marginBottom: 20,
+        borderTopWidth: 1,
+        borderTopColor: '#E8DCC8',
+        paddingTop: 20,
+    },
+    landscapePriceLabel: {
+        fontSize: 12,
+        fontWeight: '900',
+        color: '#C8A96A',
+        textTransform: 'uppercase',
+        letterSpacing: 1.5,
+        marginBottom: 4,
+    },
+    landscapePriceValue: {
+        fontSize: 32,
+        fontWeight: '900',
+        color: '#000000',
+        letterSpacing: -1,
+    },
+    landscapeDeliveryText: {
+        fontSize: 11,
+        color: '#64748b',
+        fontWeight: '700',
+        marginTop: 4,
+        textTransform: 'uppercase',
+    },
+    landscapeCheckoutBtn: {
+        backgroundColor: '#000000',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 18,
+        borderRadius: 4,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.25,
+        shadowRadius: 10,
+        elevation: 10,
+    },
+    landscapeCheckoutText: {
+        color: '#FFFFFF',
+        fontSize: 14,
+        fontWeight: '900',
+        letterSpacing: 1.5,
+        textTransform: 'uppercase',
     },
 });
