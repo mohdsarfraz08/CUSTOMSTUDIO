@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, ActivityIndicator, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, ActivityIndicator, Dimensions, useWindowDimensions } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { CustomTheme } from '../../../../constants/theme';
 import { getFirestoreDb } from '../../../firebase/config';
@@ -8,10 +8,11 @@ import { fetchEmbroideryUploadedCollectionsForStyleId } from '../../../firebase/
 /**
  * Summary-style overlay: same **uploaded collections** as website admin (`kurta_collections`, etc. + `values[]`).
  */
-const { width: windowWidth } = Dimensions.get('window');
-const isTablet = windowWidth >= 600;
-
 export default function EmbroideryPreviewModal({ visible, onClose, embroidery, panelMode, onApply, selectedCollectionId }) {
+    const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+    const isLandscape = windowWidth > windowHeight;
+    const isTablet = windowWidth >= 768;
+
     const [designCatalog, setDesignCatalog] = useState([]);
     const [designsLoading, setDesignsLoading] = useState(false);
 
@@ -65,10 +66,25 @@ export default function EmbroideryPreviewModal({ visible, onClose, embroidery, p
         onClose?.();
     };
 
+    const sheetDynamicStyle = {
+        width: isLandscape ? '60%' : (isTablet ? '92%' : '94%'),
+        maxHeight: isLandscape ? '95%' : (isTablet ? '85%' : '82%'),
+    };
+
+    const designCardStyle = {
+        width: isLandscape ? '23.5%' : (isTablet ? '31.5%' : '48%'),
+        marginRight: '1%',
+        height: isLandscape ? 220 : (isTablet ? 250 : 220),
+    };
+
+    const designImageStyle = {
+        height: isLandscape ? 130 : (isTablet ? 160 : 140),
+    };
+
     return (
         <View style={styles.overlay}>
             <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={onClose} activeOpacity={1} />
-            <View style={styles.sheet}>
+            <View style={[styles.sheet, sheetDynamicStyle]}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={onClose} style={styles.closeBtnWrap}>
                         <MaterialIcons name="close" size={18} color="#1D1D1D" />
@@ -104,7 +120,7 @@ export default function EmbroideryPreviewModal({ visible, onClose, embroidery, p
                                 {designCatalog.map((d) => (
                                     <TouchableOpacity
                                         key={`${d.segment}-${d.id}`}
-                                        style={[styles.designCard, selectedCollectionId === d.id && styles.designCardSelected]}
+                                        style={[styles.designCard, selectedCollectionId === d.id && styles.designCardSelected, designCardStyle]}
                                         activeOpacity={0.86}
                                         onPress={() => applyCollection(d)}
                                     >
@@ -112,11 +128,11 @@ export default function EmbroideryPreviewModal({ visible, onClose, embroidery, p
                                             {d.imageUri ? (
                                                 <Image
                                                     source={{ uri: d.imageUri }}
-                                                    style={styles.designImage}
+                                                    style={[styles.designImage, designImageStyle]}
                                                     resizeMode="contain"
                                                 />
                                             ) : (
-                                                <View style={[styles.designImage, styles.designImagePlaceholder]}>
+                                                <View style={[styles.designImage, styles.designImagePlaceholder, designImageStyle]}>
                                                     <Text style={styles.designImagePlaceholderText}>No image</Text>
                                                 </View>
                                             )}
@@ -173,8 +189,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     sheet: {
-        width: isTablet ? '96%' : '92%',
-        maxHeight: isTablet ? '92%' : '82%',
         backgroundColor: '#FDFBF7', // Cream background
         borderRadius: 22,
         overflow: 'hidden',
@@ -211,10 +225,6 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
         letterSpacing: 1,
     },
-    closeBtn: {
-        fontSize: 22,
-        color: '#1D1D1D',
-    },
     closeBtnWrap: {
         position: 'absolute',
         top: 20,
@@ -230,7 +240,7 @@ const styles = StyleSheet.create({
         zIndex: 10,
     },
     scroll: {
-        maxHeight: isTablet ? 800 : 480,
+        maxHeight: 800,
     },
     scrollContent: {
         padding: 16,
@@ -248,30 +258,29 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '900',
         color: '#1D1D1D',
-        letterSpacing: 1,
         textTransform: 'uppercase',
+        letterSpacing: 1.5,
+        marginBottom: 4,
     },
     sectionSubtitle: {
-        fontSize: 10,
-        color: '#8B7355',
+        fontSize: 11,
         fontWeight: '700',
-        marginTop: 4,
+        color: '#64748b',
         textTransform: 'uppercase',
         letterSpacing: 0.5,
     },
     designGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        justifyContent: 'space-between',
+        justifyContent: 'flex-start',
+        marginTop: 20,
     },
     designCard: {
-        width: isTablet ? '32%' : '48%',
         backgroundColor: '#FFFBF5', // Cream card
         borderRadius: 8,
         borderWidth: 1,
         borderColor: '#E8DCC8', // Gold border
         marginBottom: 16,
-        marginRight: isTablet ? '1%' : 0,
         overflow: 'hidden',
         paddingBottom: 12,
         // Premium shadow
@@ -293,7 +302,6 @@ const styles = StyleSheet.create({
     },
     designImage: {
         width: '100%',
-        height: isTablet ? 160 : 140, // Increased height for more space
         backgroundColor: '#f8fafc',
     },
     designImagePlaceholder: {

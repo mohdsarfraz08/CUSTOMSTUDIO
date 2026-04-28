@@ -1828,7 +1828,7 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                                 style={[styles.fabricSwitcherTab, fabricTab === tab && styles.fabricSwitcherTabActive]}
                                 onPress={() => { setFabricTab(tab); if (tvSessionId) sendCommand('SET_FABRIC_TAB', { tab }); }}
                             >
-                                <Text style={[styles.fabricSwitcherText, fabricTab === tab && { color: '#fff' }]}>{tab}</Text>
+                                <Text style={[styles.fabricSwitcherText, fabricTab === tab && { color: '#fff' }, isLargeLandscape && { fontSize: 15 }]}>{tab}</Text>
                             </TouchableOpacity>
                         ))}
                     </View>
@@ -2136,7 +2136,7 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                                         style={[styles.fabricSwitcherTab, embroideryPanelTab === tab && styles.fabricSwitcherTabActive]}
                                         onPress={() => setEmbroideryPanelTab(tab)}
                                     >
-                                        <Text style={[styles.fabricSwitcherText, embroideryPanelTab === tab && { color: '#fff' }]}>{tab}</Text>
+                                        <Text style={[styles.fabricSwitcherText, embroideryPanelTab === tab && { color: '#fff' }, isLargeLandscape && { fontSize: 15 }]}>{tab}</Text>
                                     </TouchableOpacity>
                                 ))}
                             </View>
@@ -2165,7 +2165,7 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                                                 activeOpacity={0.9}
                                             >
                                                 {profileThumb ? (
-                                                    <Image source={profileThumb} style={[styles.fabricImage, isLargeLandscape && { height: 200 }]} resizeMode="cover" />
+                                                    <Image source={profileThumb} style={[styles.fabricImage, isLargeLandscape && { height: 130 }]} resizeMode="cover" />
                                                 ) : (
                                                     <View style={[styles.fabricImage, { backgroundColor: '#f0e6d2' }]} />
                                                 )}
@@ -2488,7 +2488,11 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                             }}
                         >
                             <TouchableOpacity
-                                style={[styles.extrasTraySlot, effectiveTV && { width: normalize(40), height: normalize(40), borderRadius: normalize(8) }]}
+                                style={[
+                                    styles.extrasTraySlot, 
+                                    isLargeLandscape && { width: 68, height: 68, marginBottom: 15 },
+                                    effectiveTV && { width: normalize(40), height: normalize(40), borderRadius: normalize(8) }
+                                ]}
                                 activeOpacity={0.85}
                                 onPress={() => {
                                     if (id === 0) { setSummaryTab(fabricTab || 'Kurta'); setSummaryOpen(true); animateExtrasTray(false); return; }
@@ -2497,11 +2501,18 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                                 }}
                             >
                                 {TrayIcon ? (
-                                    <TrayIcon width={effectiveTV ? normalize(18) : 26} height={effectiveTV ? normalize(18) : 26} />
+                                    <TrayIcon 
+                                        width={isLargeLandscape ? 34 : (effectiveTV ? normalize(18) : 26)} 
+                                        height={isLargeLandscape ? 34 : (effectiveTV ? normalize(18) : 26)} 
+                                    />
                                 ) : (
-                                    <MaterialIcons name="tune" size={effectiveTV ? normalize(18) : 26} color="#1D1D1D" />
+                                    <MaterialIcons 
+                                        name="tune" 
+                                        size={isLargeLandscape ? 34 : (effectiveTV ? normalize(18) : 26)} 
+                                        color="#1D1D1D" 
+                                    />
                                 )}
-                                <Text style={[styles.extrasTraySlotLabel, { fontSize: effectiveTV ? normalize(5) : 9 }]}>{label}</Text>
+                                <Text style={[styles.extrasTraySlotLabel, { fontSize: isLargeLandscape ? 11 : (effectiveTV ? normalize(5) : 9) }]}>{label}</Text>
                             </TouchableOpacity>
                         </Animated.View>
                         );
@@ -2606,10 +2617,6 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                                 <TouchableOpacity onPress={() => router.back()} style={styles.landscapeBackButton}>
                                     <MaterialIcons name="arrow-back" size={24} color="#000000" />
                                     <Text style={styles.landscapeBackText}>BACK</Text>
-                                </TouchableOpacity>
-                                
-                                <TouchableOpacity style={styles.landscapeSettingsBtn}>
-                                    <MaterialIcons name="settings" size={24} color="#1D1D1D" />
                                 </TouchableOpacity>
                             </View>
 
@@ -2890,7 +2897,7 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
             {infoFabric && (
                 <View style={styles.buttonModalOverlay}>
                     <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setInfoFabric(null)} />
-                    <View style={[styles.infoModalContainer, isTabletViewport && { width: '85%', maxHeight: '92%' }]}>
+                    <View style={[styles.infoModalContainer, isLargeLandscape && { width: '60%', maxHeight: '95%' }]}>
                         <TouchableOpacity onPress={() => setInfoFabric(null)} style={styles.modalFloatingClose}>
                             <MaterialIcons name="close" size={22} color="#000000" />
                         </TouchableOpacity>
@@ -2901,7 +2908,7 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                         </View>
 
                         <ScrollView 
-                            style={[styles.infoScroll, isTabletViewport && { maxHeight: 800 }]} 
+                            style={[styles.infoScroll, isLargeLandscape && { maxHeight: 700 }, isTabletViewport && { maxHeight: 800 }]} 
                             contentContainerStyle={styles.infoContent}
                         >
                             <View style={styles.infoTitleBlock}>
@@ -3042,7 +3049,7 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
             {infoEmbroidery?.item && (
                 <View style={styles.buttonModalOverlay}>
                     <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setInfoEmbroidery(null)} />
-                    <View style={[styles.infoModalContainer, isTabletViewport && { width: '85%', maxHeight: '92%' }]}>
+                    <View style={[styles.infoModalContainer, isLargeLandscape && { width: '60%', maxHeight: '95%' }]}>
                         <TouchableOpacity onPress={() => setInfoEmbroidery(null)} style={styles.modalFloatingClose}>
                             <MaterialIcons name="close" size={22} color="#000000" />
                         </TouchableOpacity>
@@ -3053,7 +3060,7 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                         </View>
 
                         <ScrollView
-                            style={[styles.infoScroll, isTabletViewport && { maxHeight: 800 }]}
+                            style={[styles.infoScroll, isLargeLandscape && { maxHeight: 700 }, isTabletViewport && { maxHeight: 800 }]}
                             contentContainerStyle={styles.infoContent}
                         >
                             {(() => {
@@ -3228,7 +3235,7 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
             {isSummaryOpen && (
                 <View style={styles.buttonModalOverlay}>
                     <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setSummaryOpen(false)} />
-                    <View style={[styles.infoModalContainer, isTabletViewport && { width: '85%', maxHeight: '92%' }]}>
+                    <View style={[styles.infoModalContainer, isLargeLandscape && { width: '60%', maxHeight: '95%' }]}>
                         <TouchableOpacity onPress={() => setSummaryOpen(false)} style={styles.modalFloatingClose}>
                             <MaterialIcons name="close" size={22} color="#000000" />
                         </TouchableOpacity>
@@ -3251,7 +3258,7 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                         </View>
 
                         <ScrollView 
-                            style={[styles.infoScroll, isTabletViewport && { maxHeight: 800 }]} 
+                            style={[styles.infoScroll, isLargeLandscape && { maxHeight: 700 }, isTabletViewport && { maxHeight: 800 }]} 
                             contentContainerStyle={[styles.infoContent, { paddingTop: 10 }]}
                         >
                             {!isCostBreakupTab ? (
@@ -3967,7 +3974,13 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         elevation: 4,
     },
-    fabricSwitcherText: { fontSize: 12, fontWeight: '900', color: '#1D1D1D', letterSpacing: 1 },
+    fabricSwitcherText: { 
+        fontSize: 12, 
+        fontWeight: '900', 
+        color: '#1D1D1D', 
+        letterSpacing: 1,
+        textTransform: 'uppercase'
+    },
 
     // Search & Filter
     searchFilterContainer: {
@@ -4352,8 +4365,8 @@ const styles = StyleSheet.create({
         backgroundColor: '#ffffff',
         borderRadius: 22,
         overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: '#dbe3ee',
+        borderWidth: 1.5,
+        borderColor: '#E8DCC8',
     },
     skinToneModalContainer: {
         width: '92%',
