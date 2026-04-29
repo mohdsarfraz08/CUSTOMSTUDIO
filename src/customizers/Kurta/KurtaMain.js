@@ -455,7 +455,7 @@ function buildEmbroideryProfileCarouselSources(emb) {
     return slides;
 }
 
-export default function KurtaMain({ presetParam, presetIdParam, isTVView = false, initialPanel = 'Fabric', onNavigate }) {
+export default function KurtaMain({ presetParam, presetIdParam, isTVView = false, initialPanel, onNavigate }) {
     const {
         fabrics,
         fabricsByGarment,
@@ -533,6 +533,34 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
     const [pendingKurtaBtnId, setPendingKurtaBtnId] = useState(null);
     const [pendingSadriBtnId, setPendingSadriBtnId] = useState(null);
     const [pendingCoatBtnId, setPendingCoatBtnId] = useState(null);
+
+    const btnAnims = useRef({
+        Fabric: new Animated.Value(1),
+        Style: new Animated.Value(1),
+        Embroidery: new Animated.Value(1),
+        Extras: new Animated.Value(1),
+        Summary: new Animated.Value(1),
+        Skin: new Animated.Value(1),
+        Share: new Animated.Value(1),
+    }).current;
+
+    const runBtnAnim = (id) => {
+        if (!btnAnims[id]) return;
+        Animated.sequence([
+            Animated.spring(btnAnims[id], { toValue: 0.9, useNativeDriver: true, speed: 45 }),
+            Animated.spring(btnAnims[id], { toValue: 1, useNativeDriver: true, friction: 4, tension: 50 })
+        ]).start();
+    };
+
+    useEffect(() => {
+        if (isLargeLandscape && !activePanel) {
+            setActivePanel('Fabric');
+        }
+    }, [isLargeLandscape, activePanel]);
+
+    useEffect(() => {
+        if (initialPanel) setActivePanel(initialPanel);
+    }, [initialPanel]);
 
     useEffect(() => {
         if (pendingKurtaBtnId && buttonById) {
@@ -2429,15 +2457,21 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                     return (
                         <TouchableOpacity 
                             key={index} 
+                            activeOpacity={0.7}
                             style={[
                                 styles.iconButton, 
                                 isActive && styles.iconButtonActive, 
                                 isLargeLandscape && styles.iconButtonLandscape,
                                 effectiveTV && { width: normalize(36), height: normalize(36), borderRadius: normalize(8) }
                             ]} 
-                            onPress={() => togglePanel(IconComponent.displayName)}
+                            onPress={() => {
+                                runBtnAnim(IconComponent.displayName);
+                                togglePanel(IconComponent.displayName);
+                            }}
                         >
-                            <IconComponent size={isLargeLandscape ? 28 : (effectiveTV ? normalize(14) : 22)} color={mainColor} />
+                            <Animated.View style={{ transform: [{ scale: btnAnims[IconComponent.displayName] }] }}>
+                                <IconComponent size={isLargeLandscape ? 28 : (effectiveTV ? normalize(14) : 22)} color={mainColor} />
+                            </Animated.View>
                             <Text style={[
                                 styles.iconText, 
                                 isLargeLandscape && styles.iconTextLandscape,
@@ -2495,24 +2529,29 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                                 ]}
                                 activeOpacity={0.85}
                                 onPress={() => {
+                                    const animId = id === 0 ? 'Summary' : id === 3 ? 'Skin' : id === 2 ? 'Share' : null;
+                                    if (animId) runBtnAnim(animId);
+                                    
                                     if (id === 0) { setSummaryTab(fabricTab || 'Kurta'); setSummaryOpen(true); animateExtrasTray(false); return; }
                                     if (id === 2) { handleSharePreset(); animateExtrasTray(false); return; }
                                     if (id === 3) { setSkinToneModalOpen(true); animateExtrasTray(false); return; }
                                 }}
                             >
-                                {TrayIcon ? (
-                                    <TrayIcon 
-                                        width={isLargeLandscape ? 34 : (effectiveTV ? normalize(18) : 26)} 
-                                        height={isLargeLandscape ? 34 : (effectiveTV ? normalize(18) : 26)} 
-                                    />
-                                ) : (
-                                    <MaterialIcons 
-                                        name="tune" 
-                                        size={isLargeLandscape ? 34 : (effectiveTV ? normalize(18) : 26)} 
-                                        color="#1D1D1D" 
-                                    />
-                                )}
-                                <Text style={[styles.extrasTraySlotLabel, { fontSize: isLargeLandscape ? 11 : (effectiveTV ? normalize(5) : 9) }]}>{label}</Text>
+                                <Animated.View style={{ transform: [{ scale: btnAnims[id === 0 ? 'Summary' : id === 3 ? 'Skin' : id === 2 ? 'Share' : 'Extras'] || 1 }], alignItems: 'center' }}>
+                                    {TrayIcon ? (
+                                        <TrayIcon 
+                                            width={isLargeLandscape ? 34 : (effectiveTV ? normalize(18) : 26)} 
+                                            height={isLargeLandscape ? 34 : (effectiveTV ? normalize(18) : 26)} 
+                                        />
+                                    ) : (
+                                        <MaterialIcons 
+                                            name="tune" 
+                                            size={isLargeLandscape ? 34 : (effectiveTV ? normalize(18) : 26)} 
+                                            color="#1D1D1D" 
+                                        />
+                                    )}
+                                    <Text style={[styles.extrasTraySlotLabel, { fontSize: isLargeLandscape ? 11 : (effectiveTV ? normalize(5) : 9) }]}>{label}</Text>
+                                </Animated.View>
                             </TouchableOpacity>
                         </Animated.View>
                         );
@@ -2520,6 +2559,7 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                 </Animated.View>
 
                 <TouchableOpacity
+                    activeOpacity={0.7}
                     style={[
                         styles.iconButton, 
                         extrasTrayOpen && styles.iconButtonActive, 
@@ -2527,9 +2567,14 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                         { marginBottom: 0 }, 
                         effectiveTV && { width: normalize(36), height: normalize(36), borderRadius: normalize(8) }
                     ]}
-                    onPress={toggleExtrasTray}
+                    onPress={() => {
+                        runBtnAnim('Extras');
+                        toggleExtrasTray();
+                    }}
                 >
-                    <IconExtras color={extrasTrayOpen ? '#FFF' : '#1D1D1D'} size={isLargeLandscape ? 30 : (effectiveTV ? normalize(14) : 24)} />
+                    <Animated.View style={{ transform: [{ scale: btnAnims['Extras'] }] }}>
+                        <IconExtras color={extrasTrayOpen ? '#FFF' : '#1D1D1D'} size={isLargeLandscape ? 30 : (effectiveTV ? normalize(14) : 24)} />
+                    </Animated.View>
                     <Text style={[
                         styles.iconText, 
                         isLargeLandscape && styles.iconTextLandscape,
@@ -2614,9 +2659,13 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                         {/* --- COLUMN 3: RIGHT SIDEBAR (Icons + Price + Proceed) --- */}
                         <View style={styles.landscapeRightSidebar}>
                             <View style={styles.landscapeTopActions}>
-                                <TouchableOpacity onPress={() => router.back()} style={styles.landscapeBackButton}>
-                                    <MaterialIcons name="arrow-back" size={24} color="#000000" />
-                                    <Text style={styles.landscapeBackText}>BACK</Text>
+                                <TouchableOpacity 
+                                    onPress={() => { runBtnAnim('Extras'); router.back(); }} 
+                                    style={[styles.backButton, isLargeLandscape && styles.landscapeIconButtonMatch]}
+                                >
+                                    <Animated.View style={{ transform: [{ scale: btnAnims['Extras'] }] }}>
+                                        <MaterialIcons name="arrow-back" size={28} color="#000000" />
+                                    </Animated.View>
                                 </TouchableOpacity>
                             </View>
 
@@ -2635,9 +2684,9 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                                 
                                 <TouchableOpacity 
                                     style={styles.landscapeCheckoutBtn}
-                                    onPress={() => alert('Measurements Screen!')}
+                                    onPress={() => router.push('/measure')}
                                 >
-                                    <Text style={styles.landscapeCheckoutText}>Lets Dress Up</Text>
+                                    <Text style={styles.landscapeCheckoutText}>Get Measure</Text>
                                     <MaterialIcons name="chevron-right" size={24} color="#C8A96A" />
                                 </TouchableOpacity>
                             </View>
@@ -3499,7 +3548,7 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                     <View style={styles.bottomBarTint} />
                     <View style={styles.bottomBarContent}>
                         <View style={styles.priceBlock}>
-                            <Text style={styles.productName} numberOfLines={1}>Custom kurta set</Text>
+                            <Text style={styles.productName}>Custom kurta set</Text>
                             <Text style={styles.price} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>
                                 ₹ {Math.round(totalPrice).toLocaleString('en-IN')}
                             </Text>
@@ -3510,9 +3559,9 @@ export default function KurtaMain({ presetParam, presetIdParam, isTVView = false
                         <TouchableOpacity
                             style={[styles.checkoutBtn, isTabletViewport && styles.checkoutBtnTablet]}
                             activeOpacity={0.88}
-                            onPress={() => alert('Measurements Screen!')}
+                            onPress={() => router.push('/measure')}
                         >
-                            <Text style={styles.checkoutText}>Lets Dress Up</Text>
+                            <Text style={styles.checkoutText}>Get Measure</Text>
                             <MaterialIcons
                                 name="chevron-right"
                                 size={22}
@@ -3690,7 +3739,15 @@ const styles = StyleSheet.create({
     brandText: { fontSize: 24, fontWeight: 'bold', letterSpacing: 2, color: CustomTheme.textBrand },
     rightMenu: { position: 'absolute', right: 20, top: 0, bottom: 84, zIndex: 100, alignItems: 'center', justifyContent: 'center' },
     iconButton: { width: 50, height: 50, backgroundColor: '#F6F4EF', borderWidth: 0.5, borderColor: '#000000', borderRadius: 4, justifyContent: 'center', alignItems: 'center', marginBottom: 15, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 4, overflow: 'visible' },
-    iconButtonActive: { backgroundColor: '#C8A96A', borderWidth: 0, shadowColor: 'rgba(0,0,0,0.3)', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 1, shadowRadius: 10, elevation: 10 },
+    iconButtonActive: { 
+        backgroundColor: '#C8A96A', 
+        borderWidth: 0, 
+        shadowColor: '#000', 
+        shadowOffset: { width: 0, height: 8 }, 
+        shadowOpacity: 0.35, 
+        shadowRadius: 12, 
+        elevation: 15,
+    },
     iconText: { fontSize: 11, color: CustomTheme.textBrand, fontWeight: 'bold', textAlign: 'center', zIndex: 2 },
     extrasTray: { alignItems: 'center' },
     extrasTrayFloating: {
@@ -3905,7 +3962,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     productName: {
-        fontSize: 12,
+        fontSize: 10,
         fontWeight: '900',
         color: '#C8A96A', // Gold
         marginBottom: 1,
@@ -4024,7 +4081,6 @@ const styles = StyleSheet.create({
     buttonBanner: { backgroundColor: CustomTheme.accentGold, paddingVertical: 10, borderRadius: 6, alignItems: 'center', marginBottom: 15, marginHorizontal: 5 },
     buttonBannerText: { color: CustomTheme.textPrimary, fontSize: 14, fontWeight: 'bold' },
     buttonIconWrapper: { width: '100%', height: 85, alignItems: 'center', justifyContent: 'center' },
-    dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#666', marginHorizontal: 3 },
     buttonModalOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: CustomTheme.overlayLight, zIndex: 9999, elevation: 9999, justifyContent: 'center', alignItems: 'center' },
     buttonModalContainer: { width: '85%', maxHeight: '70%', backgroundColor: '#ffffff', borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: '#e5e7eb' },
     buttonModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
@@ -4036,7 +4092,14 @@ const styles = StyleSheet.create({
     buttonTabText: { fontSize: 12, fontWeight: 'bold', color: '#666' },
     buttonListGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', padding: 15 },
     buttonItem: { width: '48%', flexDirection: 'column', alignItems: 'center', padding: 15, borderRadius: 15, marginBottom: 15, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e5e7eb' },
-    buttonItemActive: { borderColor: CustomTheme.accentGold, backgroundColor: 'rgba(252, 157, 3, 0.1)' },
+    buttonItemActive: { 
+        borderColor: CustomTheme.accentGold, 
+        backgroundColor: 'rgba(252, 157, 3, 0.1)',
+        shadowColor: CustomTheme.accentGold,
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+        elevation: 8,
+    },
     buttonItemIcon: { width: 125, height: 125, borderRadius: 62.5, backgroundColor: 'transparent', marginBottom: 10 },
     buttonItemName: { fontSize: 13, fontWeight: 'bold', color: CustomTheme.textBrand, textAlign: 'center' },
     recommendedBadge: { fontSize: 9, color: CustomTheme.accentGold, fontWeight: 'bold', marginTop: 2 },
@@ -4719,21 +4782,20 @@ const styles = StyleSheet.create({
         marginBottom: 30,
         gap: 15,
     },
-    landscapeBackButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0,0,0,0.05)',
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderRadius: 8,
+    dot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: 'rgba(0,0,0,0.4)', // Darker for better visibility
+        marginHorizontal: 6,
         borderWidth: 1,
-        borderColor: '#E8DCC8',
+        borderColor: 'rgba(255,255,255,0.4)', // Visible border
     },
-    landscapeBackText: {
-        fontSize: 12,
-        fontWeight: '900',
-        marginLeft: 6,
-        color: '#000',
+    dotActive: {
+        width: 28,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: '#1D1D1D', // Solid dark for maximum contrast
     },
     landscapeSettingsBtn: {
         width: 44,
@@ -4756,6 +4818,14 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         marginBottom: 30,
     },
+    landscapeIconButtonMatch: {
+        width: 68,
+        height: 68,
+        borderRadius: 10,
+        backgroundColor: '#F5F1E8',
+        borderWidth: 0.5,
+        borderColor: '#000000',
+    },
     iconTextLandscape: {
         fontSize: 10,
         marginTop: 2,
@@ -4771,7 +4841,7 @@ const styles = StyleSheet.create({
         paddingTop: 20,
     },
     landscapePriceLabel: {
-        fontSize: 12,
+        fontSize: 10,
         fontWeight: '900',
         color: '#C8A96A',
         textTransform: 'uppercase',

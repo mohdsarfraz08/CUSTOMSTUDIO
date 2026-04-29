@@ -498,10 +498,27 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
-        gap: 8
+        gap: 8,
+        paddingVertical: 10,
     },
-    indicator: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.5)' },
-    indicatorActive: { width: 30, backgroundColor: '#fff' },
+    indicator: { 
+        width: 8, 
+        height: 8, 
+        borderRadius: 4, 
+        backgroundColor: 'rgba(255,255,255,0.6)', 
+        borderWidth: 1, 
+        borderColor: 'rgba(0,0,0,0.2)' 
+    },
+    indicatorActive: { 
+        width: 32, 
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: '#fff',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+    },
 
     // Categories Section
     whiteSection: { backgroundColor: '#fff', paddingTop: 20, paddingBottom: 30 },
